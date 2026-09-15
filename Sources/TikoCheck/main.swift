@@ -4,7 +4,8 @@ import TikoCore
 
 // Checks Tiko's logic without its UI or any macOS permissions.
 //   swift run TikoCheck          offline checks only
-//   swift run TikoCheck --live   also asks Gemini a real question (needs a key:
+//   swift run TikoCheck --live   also asks Gemini real questions and measures
+//                                pointing on a rendered screen (needs a key:
 //                                GEMINI_API_KEY, or one saved in Tiko's panel)
 
 var failedCheckCount = 0
@@ -78,20 +79,65 @@ let pickedModelNames = GeminiModelPicker.preferredModelNames(from: [
 ])
 check(pickedModelNames == ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.7-flash-lite"], "lite first, then flash; image, preview and embedding models skipped")
 
-// MARK: - Cursor close-up
+// MARK: - Point tags
 
-print("Cursor close-up")
-let displaySize = CGSize(width: 1470, height: 956)
+print("Point tags")
+let appearanceReply = PointTag.parse("left sidebar mein Appearance pe click karo. [POINT:88,309:Appearance]")
+check(appearanceReply.displayText == "left sidebar mein Appearance pe click karo.", "the tag is removed from the text the user sees")
+check(appearanceReply.normalizedPoint == CGPoint(x: 88, y: 309), "coordinates are read")
+check(appearanceReply.elementLabel == "Appearance" && appearanceReply.screenNumber == nil, "label is read; no screen number means the cursor's screen")
+
+let otherScreenReply = PointTag.parse("wo terminal dusri screen pe hai. [POINT:400,300:terminal:screen2]")
+check(otherScreenReply.elementLabel == "terminal" && otherScreenReply.screenNumber == 2, "label and screen number are both read")
+
+let noPointReply = PointTag.parse("html web page ka dhaancha hai. [POINT:none]")
+check(noPointReply.normalizedPoint == nil && noPointReply.displayText == "html web page ka dhaancha hai.", "[POINT:none] means no pointing")
+
+let untaggedReply = PointTag.parse("bas itna hi")
+check(untaggedReply.normalizedPoint == nil && untaggedReply.displayText == "bas itna hi", "a reply without a tag is left as it is")
+
+let spacedReply = PointTag.parse("yahan dabao [POINT: 120 , 880 : save button ]")
+check(spacedReply.normalizedPoint == CGPoint(x: 120, y: 880) && spacedReply.elementLabel == "save button", "tolerates spaces the model adds")
+
+let offScreenReply = PointTag.parse("upar menu bar mein. [POINT:-4,1003:menu bar]")
+check(offScreenReply.normalizedPoint == CGPoint(x: -4, y: 1003), "slightly off-screen coordinates are kept, not dropped")
+
+// MARK: - Screen coordinates
+
+print("Screen coordinates")
+let laptopDisplayFrame = CGRect(x: 0, y: 0, width: 1470, height: 956)
+let laptopDisplayBounds = CGRect(origin: .zero, size: laptopDisplayFrame.size)
+check(ScreenCoordinates.point(fromNormalized: CGPoint(x: 500, y: 500), in: laptopDisplayBounds) == CGPoint(x: 735, y: 478), "the grid's centre is the display's centre")
+check(ScreenCoordinates.point(fromNormalized: CGPoint(x: -4, y: 1003), in: laptopDisplayBounds) == CGPoint(x: 0, y: 956), "off-grid coordinates are clamped onto the display")
+check(ScreenCoordinates.point(fromNormalized: CGPoint(x: 500, y: 250), in: CGRect(x: 100, y: 200, width: 400, height: 400)) == CGPoint(x: 300, y: 300), "a point on a close-up maps back to display points")
+check(ScreenCoordinates.appKitGlobalPoint(fromDisplayPoint: .zero, displayFrame: laptopDisplayFrame) == CGPoint(x: 0, y: 956), "a display's top-left is at the top in AppKit space")
+let externalDisplayFrame = CGRect(x: 1470, y: -124, width: 1920, height: 1080)
+check(ScreenCoordinates.appKitGlobalPoint(fromDisplayPoint: CGPoint(x: 1920, y: 1080), displayFrame: externalDisplayFrame) == CGPoint(x: 3390, y: -124), "a second display's corner lands in the right global place")
+
+// MARK: - Close-up regions
+
+print("Close-up regions")
 check(
-    CursorCloseUp.captureRect(mouseLocationInDisplay: CGPoint(x: 700, y: 400), displaySize: displaySize, closeUpSize: 360)
+    CloseUpRegion.captureRect(centeredOn: CGPoint(x: 700, y: 400), displaySize: laptopDisplayFrame.size, regionSize: 360)
         == CGRect(x: 520, y: 220, width: 360, height: 360),
-    "centred on the cursor"
+    "centred on the given point"
 )
 check(
-    CursorCloseUp.captureRect(mouseLocationInDisplay: CGPoint(x: 10, y: 950), displaySize: displaySize, closeUpSize: 360)
+    CloseUpRegion.captureRect(centeredOn: CGPoint(x: 10, y: 950), displaySize: laptopDisplayFrame.size, regionSize: 360)
         == CGRect(x: 0, y: 596, width: 360, height: 360),
     "slides back inside the display at a corner"
 )
+
+// MARK: - Buddy flight
+
+print("Buddy flight")
+let rightwardFlight = BuddyFlight(from: CGPoint(x: 100, y: 500), to: CGPoint(x: 900, y: 500))
+check(rightwardFlight.duration == 1.0, "an 800-point flight takes one second")
+check(rightwardFlight.pose(afterSeconds: 0).position == CGPoint(x: 100, y: 500), "starts where the buddy is")
+check(rightwardFlight.pose(afterSeconds: rightwardFlight.duration).position == CGPoint(x: 900, y: 500), "lands exactly on the target")
+check(rightwardFlight.pose(afterSeconds: 0.5).position.y < 500, "arcs upward on the way")
+check(rightwardFlight.pose(afterSeconds: 0.5).scale > 1.25, "swells mid-flight")
+check(abs(rightwardFlight.pose(afterSeconds: 0).rotationDegrees - 90) < 30, "faces its direction of travel")
 
 // MARK: - Settings
 
@@ -113,8 +159,17 @@ check(TikoSettings.load(from: temporarySettingsFileURL) == TikoSettings(), "a mi
 
 // MARK: - Live
 
-/// A made-up System Settings window, so the live check has a screen with known contents.
-func renderFakeSettingsScreen() -> Data? {
+/// A made-up System Settings window with known contents, standing in for a
+/// 1280×800-point display.
+struct FakeScreen {
+    let jpegData: Data
+    let image: CGImage
+    let size: CGSize
+    /// Where each piece of text was drawn, measured from the top-left.
+    let elementRects: [String: CGRect]
+}
+
+func renderFakeSettingsScreen() -> FakeScreen? {
     let pixelWidth = 1280
     let pixelHeight = 800
     guard let bitmap = NSBitmapImageRep(
@@ -124,6 +179,8 @@ func renderFakeSettingsScreen() -> Data? {
     ), let graphicsContext = NSGraphicsContext(bitmapImageRep: bitmap) else {
         return nil
     }
+
+    var elementRects: [String: CGRect] = [:]
 
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = graphicsContext
@@ -139,7 +196,9 @@ func renderFakeSettingsScreen() -> Data? {
             .font: NSFont.systemFont(ofSize: fontSize, weight: weight),
             .foregroundColor: NSColor.black
         ]
-        (text as NSString).draw(at: NSPoint(x: x, y: CGFloat(pixelHeight) - distanceFromTop - fontSize), withAttributes: textAttributes)
+        let textSize = (text as NSString).size(withAttributes: textAttributes)
+        (text as NSString).draw(at: NSPoint(x: x, y: CGFloat(pixelHeight) - distanceFromTop - textSize.height), withAttributes: textAttributes)
+        elementRects[text] = CGRect(x: x, y: distanceFromTop, width: textSize.width, height: textSize.height)
     }
 
     drawText("System Settings", x: 24, distanceFromTop: 28, fontSize: 22, weight: .semibold)
@@ -152,32 +211,102 @@ func renderFakeSettingsScreen() -> Data? {
     }
 
     NSGraphicsContext.restoreGraphicsState()
-    return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.85])
+
+    guard let image = bitmap.cgImage,
+          let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else {
+        return nil
+    }
+    return FakeScreen(jpegData: jpegData, image: image, size: CGSize(width: pixelWidth, height: pixelHeight), elementRects: elementRects)
+}
+
+func describe(_ point: CGPoint, against targetRect: CGRect) -> String {
+    let distanceFromCentre = Int(hypot(point.x - targetRect.midX, point.y - targetRect.midY))
+    return "(\(Int(point.x)), \(Int(point.y))), \(distanceFromCentre)px from centre"
 }
 
 if CommandLine.arguments.contains("--live") {
-    print("Live Gemini question")
+    print("Live Gemini")
     let apiKey = TikoSettings.load().resolvedGeminiAPIKey
     if apiKey.isEmpty {
         print("  FAIL  no key: set GEMINI_API_KEY or save a key in Tiko's panel")
         failedCheckCount += 1
-    } else if let fakeScreenJPEG = renderFakeSettingsScreen() {
+    } else if let fakeScreen = renderFakeSettingsScreen() {
         do {
             let availableModelNames = try await GeminiClient(apiKey: apiKey, modelNames: []).fetchAvailableModelNames()
             let preferredModelNames = GeminiModelPicker.preferredModelNames(from: availableModelNames)
             print("  models to use, best first: \(preferredModelNames.joined(separator: ", "))")
             check(!preferredModelNames.isEmpty, "the key can reach at least one suitable model")
 
-            let questionStartTime = ContinuousClock.now
-            let reply = try await GeminiClient(apiKey: apiKey, modelNames: preferredModelNames).generateReply(
-                systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: true),
-                history: [],
-                images: [GeminiImage(jpegData: fakeScreenJPEG, label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true))],
-                userText: "bhai dark mode kaise on karu?"
+            let geminiClient = GeminiClient(apiKey: apiKey, modelNames: preferredModelNames)
+            let fakeScreenImage = GeminiImage(
+                jpegData: fakeScreen.jpegData,
+                label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true)
             )
-            let secondsTaken = (ContinuousClock.now - questionStartTime).components.seconds
-            print("  \(reply.modelName) answered in about \(secondsTaken)s: \(reply.text)")
-            check(reply.text.localizedCaseInsensitiveContains("appearance"), "the reply points to Appearance, which is on the fake screen")
+            let fakeScreenBounds = CGRect(origin: .zero, size: fakeScreen.size)
+
+            let pointingQuestions: [(question: String, expectedElement: String)] = [
+                ("bhai dark mode kaise on karu?", "Appearance"),
+                ("bluetooth ki settings kahan hai?", "Bluetooth"),
+                ("storage kitna bacha hai kaise dekhu?", "Storage"),
+                ("login items kahan milenge?", "Login Items")
+            ]
+
+            var pointedAnswerCount = 0
+            var firstGuessHitCount = 0
+            var zoomCheckedHitCount = 0
+
+            print("  pointing on the fake screen:")
+            for pointingQuestion in pointingQuestions {
+                guard let expectedRect = fakeScreen.elementRects[pointingQuestion.expectedElement] else { continue }
+                // A point on the element's row, not only on its letters, counts as a hit.
+                let hitArea = expectedRect.insetBy(dx: -16, dy: -12)
+
+                let reply = try await geminiClient.generateReply(
+                    systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: true),
+                    history: [],
+                    images: [fakeScreenImage],
+                    userText: pointingQuestion.question
+                )
+                let parsedReply = PointTag.parse(reply.text)
+                print("    \"\(pointingQuestion.question)\" → \(parsedReply.displayText)")
+
+                guard let normalizedPoint = parsedReply.normalizedPoint else {
+                    print("      no point given")
+                    continue
+                }
+                pointedAnswerCount += 1
+
+                let firstGuess = ScreenCoordinates.point(fromNormalized: normalizedPoint, in: fakeScreenBounds)
+                let regionRect = CloseUpRegion.captureRect(centeredOn: firstGuess, displaySize: fakeScreen.size, regionSize: 400)
+                var zoomCheckedPoint: CGPoint?
+                if let regionImage = fakeScreen.image.cropping(to: regionRect),
+                   let regionJPEG = NSBitmapImageRep(cgImage: regionImage).representation(using: .jpeg, properties: [.compressionFactor: 0.85]) {
+                    zoomCheckedPoint = await PointRefiner.refinePoint(
+                        elementLabel: parsedReply.elementLabel ?? "the element",
+                        userQuestion: pointingQuestion.question,
+                        regionRect: regionRect,
+                        regionJPEG: regionJPEG,
+                        geminiClient: geminiClient
+                    )
+                }
+                let finalPoint = zoomCheckedPoint ?? firstGuess
+
+                let firstGuessHit = hitArea.contains(firstGuess)
+                let finalPointHit = hitArea.contains(finalPoint)
+                if firstGuessHit { firstGuessHitCount += 1 }
+                if finalPointHit { zoomCheckedHitCount += 1 }
+
+                print("      label \"\(parsedReply.elementLabel ?? "none")\", target \(pointingQuestion.expectedElement)")
+                print("      first guess  \(describe(firstGuess, against: expectedRect)) \(firstGuessHit ? "HIT" : "miss")")
+                if let zoomCheckedPoint {
+                    print("      zoom-checked \(describe(zoomCheckedPoint, against: expectedRect)) \(finalPointHit ? "HIT" : "miss")")
+                } else {
+                    print("      zoom check found nothing; kept the first guess")
+                }
+            }
+
+            print("  result: first guess \(firstGuessHitCount)/\(pointingQuestions.count) hits, with zoom check \(zoomCheckedHitCount)/\(pointingQuestions.count) hits")
+            check(pointedAnswerCount > 0, "Gemini points when asked where something is")
         } catch {
             print("  FAIL  \(error.localizedDescription)")
             failedCheckCount += 1

@@ -63,6 +63,11 @@ struct CompanionPanelView: View {
                         .font(.system(size: 12))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
+                    if let lastPointingTarget = companionManager.lastPointingTarget {
+                        Text("Pointed at \(lastPointingTarget.elementLabel)\(lastPointingTarget.wasZoomChecked ? " · zoom-checked" : "")")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

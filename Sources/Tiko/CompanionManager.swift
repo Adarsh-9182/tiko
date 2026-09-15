@@ -26,8 +26,20 @@ struct BuddyMessage: Equatable {
     let isReply: Bool
 }
 
+/// Somewhere on screen the buddy should fly to.
+struct PointingTarget: Equatable {
+    let id = UUID()
+    /// The element's centre, in AppKit global coordinates.
+    let location: CGPoint
+    /// The display the element is on, so only that screen's overlay flies there.
+    let displayFrame: CGRect
+    let elementLabel: String
+    /// Whether the close-up double-check confirmed the spot.
+    let wasZoomChecked: Bool
+}
+
 /// Tiko's central state: permissions, the cursor buddy, push-to-talk, speech
-/// recognition and Gemini. Later phases add pointing and speaking the reply.
+/// recognition, Gemini and pointing. Phase 8 adds speaking the reply.
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var permissions = PermissionSnapshot()
@@ -37,9 +49,13 @@ final class CompanionManager: ObservableObject {
 
     @Published private(set) var voiceState: BuddyVoiceState = .idle
     @Published private(set) var buddyMessage: BuddyMessage?
+    /// Where the buddy is pointing right now; nil sends it back to the cursor.
+    @Published private(set) var pointingTarget: PointingTarget?
     /// The last thing the user said, as recognised text.
     @Published private(set) var lastTranscript: String?
     @Published private(set) var lastReply: GeminiReply?
+    /// Where the buddy pointed for the last reply, kept for the panel.
+    @Published private(set) var lastPointingTarget: PointingTarget?
     @Published private(set) var geminiKeyStatus: GeminiKeyStatus
 
     /// Whether the buddy follows the cursor. Saved so the choice survives restarts.
@@ -70,6 +86,10 @@ final class CompanionManager: ObservableObject {
     private static let hasShownWelcomeBubbleDefaultsKey = "hasShownWelcomeBubble"
     private static let speechLocaleIdentifier = "en-IN"
     private static let maximumRememberedExchanges = 10
+    /// The close-up used to double-check a point, in points.
+    private static let pointRefinementRegionSize: CGFloat = 400
+    /// The double-check is a bonus; past this, point at the first guess instead of making the user wait.
+    private static let pointRefinementTimeLimit: Duration = .seconds(5)
 
     init() {
         let savedSettings = TikoSettings.load()
@@ -203,6 +223,7 @@ final class CompanionManager: ObservableObject {
         transcriptionTask = nil
         replyTask?.cancel()
         replyTask = nil
+        pointingTarget = nil
         // Get the panel out of the way so it doesn't cover what the user is asking about.
         NotificationCenter.default.post(name: .tikoDismissPanel, object: nil)
 
@@ -275,10 +296,27 @@ final class CompanionManager: ObservableObject {
                 let reply = try await self.fetchReply(to: transcript, screenContext: screenContext)
                 guard !Task.isCancelled else { return }
 
-                self.rememberExchange(ConversationExchange(userText: transcript, tikoReply: reply.text))
-                self.lastReply = reply
+                let parsedReply = PointTag.parse(reply.text)
+                let displayText = parsedReply.displayText.isEmpty ? "yahan dekho" : parsedReply.displayText
+                self.rememberExchange(ConversationExchange(userText: transcript, tikoReply: displayText))
+                self.lastReply = GeminiReply(text: displayText, modelName: reply.modelName)
+                self.lastPointingTarget = nil
                 self.voiceState = .idle
-                self.showBuddyMessage(BuddyMessage(text: reply.text, isReply: true), for: Self.readingDuration(for: reply.text))
+
+                // Show the words right away; the buddy flies over once the point is double-checked.
+                let replyMessage = BuddyMessage(text: displayText, isReply: true)
+                self.showBuddyMessage(replyMessage, for: Self.readingDuration(for: displayText))
+
+                guard let screenContext,
+                      let resolvedTarget = await self.resolvePointingTarget(for: parsedReply, question: transcript, screenContext: screenContext) else {
+                    return
+                }
+                // The user may have asked something new while the point was being checked.
+                guard !Task.isCancelled, self.buddyMessage == replyMessage else { return }
+                self.pointingTarget = resolvedTarget
+                self.lastPointingTarget = resolvedTarget
+                // Restart the reading time so the reply stays up for the whole visit.
+                self.showBuddyMessage(replyMessage, for: Self.readingDuration(for: displayText) + .seconds(1.5))
             } catch {
                 // A cancelled request means the user asked something new; stay quiet.
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return }
@@ -301,6 +339,89 @@ final class CompanionManager: ObservableObject {
             userText: transcript
         )
     }
+
+    // MARK: - Pointing
+
+    /// Turns the reply's point tag into a spot on a real screen, double-checked on a close-up.
+    private func resolvePointingTarget(for parsedReply: PointTagParseResult, question: String, screenContext: ScreenContext) async -> PointingTarget? {
+        guard let normalizedPoint = parsedReply.normalizedPoint, let cursorScreen = screenContext.screens.first else {
+            return nil
+        }
+
+        // No screen number, or one that doesn't exist, means the cursor's screen.
+        let requestedScreenIndex = (parsedReply.screenNumber ?? 1) - 1
+        let targetScreen = screenContext.screens.indices.contains(requestedScreenIndex)
+            ? screenContext.screens[requestedScreenIndex]
+            : cursorScreen
+
+        let wholeDisplay = CGRect(origin: .zero, size: targetScreen.displayFrame.size)
+        let firstGuessInDisplay = ScreenCoordinates.point(fromNormalized: normalizedPoint, in: wholeDisplay)
+        let elementLabel = parsedReply.elementLabel ?? "yahan"
+
+        let zoomCheckedPointInDisplay = await zoomCheckPoint(
+            firstGuessInDisplay,
+            on: targetScreen,
+            elementLabel: elementLabel,
+            question: question
+        )
+        let finalPointInDisplay = zoomCheckedPointInDisplay ?? firstGuessInDisplay
+
+        return PointingTarget(
+            location: ScreenCoordinates.appKitGlobalPoint(fromDisplayPoint: finalPointInDisplay, displayFrame: targetScreen.displayFrame),
+            displayFrame: targetScreen.displayFrame,
+            elementLabel: elementLabel,
+            wasZoomChecked: zoomCheckedPointInDisplay != nil
+        )
+    }
+
+    /// The full screenshot Gemini saw was scaled down, so its first guess can be
+    /// a little off. Capture a sharp close-up around the guess and ask again.
+    /// Returns nil if the check doesn't finish in time or can't find the element.
+    private func zoomCheckPoint(_ firstGuessInDisplay: CGPoint, on targetScreen: CapturedScreen, elementLabel: String, question: String) async -> CGPoint? {
+        guard case .ready(let modelNames) = geminiKeyStatus else { return nil }
+
+        let regionRect = CloseUpRegion.captureRect(
+            centeredOn: firstGuessInDisplay,
+            displaySize: targetScreen.displayFrame.size,
+            regionSize: Self.pointRefinementRegionSize
+        )
+        let geminiClient = GeminiClient(apiKey: settings.geminiAPIKey, modelNames: modelNames)
+        let displayID = targetScreen.displayID
+
+        return await Self.firstResult(within: Self.pointRefinementTimeLimit) {
+            guard let regionJPEG = try? await ScreenCaptureService.captureRegion(displayID: displayID, rectInDisplay: regionRect) else {
+                return nil
+            }
+            return await PointRefiner.refinePoint(
+                elementLabel: elementLabel,
+                userQuestion: question,
+                regionRect: regionRect,
+                regionJPEG: regionJPEG,
+                geminiClient: geminiClient
+            )
+        }
+    }
+
+    /// Runs `operation`, but gives up with nil once `timeLimit` passes.
+    private static func firstResult<Value: Sendable>(
+        within timeLimit: Duration,
+        operation: @escaping @Sendable () async -> Value?
+    ) async -> Value? {
+        await withTaskGroup(of: Value?.self) { taskGroup in
+            taskGroup.addTask {
+                await operation()
+            }
+            taskGroup.addTask {
+                try? await Task.sleep(for: timeLimit)
+                return nil
+            }
+            let firstFinishedResult = await taskGroup.next() ?? nil
+            taskGroup.cancelAll()
+            return firstFinishedResult
+        }
+    }
+
+    // MARK: - Helpers
 
     private func rememberExchange(_ exchange: ConversationExchange) {
         conversationHistory.append(exchange)
@@ -340,9 +461,13 @@ final class CompanionManager: ObservableObject {
         }
     }
 
+    /// Hides the bubble, and sends the buddy home if it was pointing to go with it.
     private func clearBuddyMessage() {
         buddyMessageDismissTask?.cancel()
         buddyMessageDismissTask = nil
+        if pointingTarget != nil {
+            pointingTarget = nil
+        }
         guard buddyMessage != nil else { return }
         buddyMessage = nil
         applyBuddyVisibility()
@@ -350,8 +475,8 @@ final class CompanionManager: ObservableObject {
 
     private func applyBuddyVisibility() {
         // Even with the buddy switched off, it appears while the user is talking
-        // to Tiko or Tiko has something to tell them.
-        let shouldShowOverlay = isBuddyVisible || voiceState != .idle || buddyMessage != nil
+        // to Tiko, Tiko has something to say, or it's pointing at something.
+        let shouldShowOverlay = isBuddyVisible || voiceState != .idle || buddyMessage != nil || pointingTarget != nil
         guard shouldShowOverlay else {
             overlayWindowManager.hideOverlay()
             return

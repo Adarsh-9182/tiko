@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import TikoCore
 
 /// A transparent, click-through window covering one whole screen. The buddy
 /// is drawn inside it, so it can appear anywhere without blocking any app.
@@ -88,8 +89,16 @@ final class OverlayWindowManager {
     }
 }
 
-/// The buddy as drawn on one screen. Every screen has its own copy, and only
-/// the copy on the screen that holds the cursor is visible.
+private enum BuddyFlightMode {
+    case followingCursor
+    case flyingToTarget
+    case pointingAtTarget
+    case flyingBackToCursor
+}
+
+/// The buddy as drawn on one screen. Every screen has its own copy; only the
+/// copy on the cursor's screen is visible, unless the buddy is out pointing at
+/// something on another screen.
 struct BuddyOverlayView: View {
     let screenFrame: CGRect
     @ObservedObject var cursorTracker: CursorTracker
@@ -102,13 +111,23 @@ struct BuddyOverlayView: View {
     @State private var welcomeBubbleText = ""
     @State private var welcomeBubbleOpacity = 0.0
 
+    @State private var flightMode: BuddyFlightMode = .followingCursor
+    @State private var activeFlight: BuddyFlight?
+    @State private var activeFlightStartDate = Date()
+    @State private var landedPosition: CGPoint = .zero
+    @State private var flightLandingTask: Task<Void, Never>?
+    @State private var mouseLocationWhenReturnStarted: CGPoint = .zero
+
     private static let welcomeMessage = "hey! main tiko hoon"
 
     /// The buddy sits just below and to the right of the real pointer, so it
     /// never covers what the user is about to click.
     private static let offsetFromMousePointer = CGSize(width: 28, height: 24)
 
-    /// Keeps bubbles this far from the screen's edges.
+    /// Moving the mouse this far during the flight home snaps the buddy straight back to the cursor.
+    private static let returnFlightCancelDistance: CGFloat = 100
+
+    /// Keeps bubbles and landing spots this far from the screen's edges.
     private static let screenEdgeMargin: CGFloat = 8
 
     private struct VisibleBubble {
@@ -121,8 +140,25 @@ struct BuddyOverlayView: View {
         screenFrame.contains(cursorTracker.mouseLocation)
     }
 
-    /// The buddy's centre in this window's SwiftUI coordinates.
-    private var buddyPosition: CGPoint {
+    private var isFlying: Bool {
+        flightMode == .flyingToTarget || flightMode == .flyingBackToCursor
+    }
+
+    private var isBuddyOnThisScreen: Bool {
+        switch flightMode {
+        case .followingCursor:
+            // While another screen's buddy is out pointing, don't draw a second one here.
+            if let pointingTarget = companionManager.pointingTarget, pointingTarget.displayFrame != screenFrame {
+                return false
+            }
+            return isCursorOnThisScreen
+        case .flyingToTarget, .pointingAtTarget, .flyingBackToCursor:
+            return true
+        }
+    }
+
+    /// Where the buddy would sit if it were following the cursor, in this window's SwiftUI coordinates.
+    private var cursorFollowingPosition: CGPoint {
         // AppKit measures up from the bottom of the main screen; SwiftUI measures
         // down from the top of this window. Flip Y within this screen's frame.
         CGPoint(
@@ -152,37 +188,45 @@ struct BuddyOverlayView: View {
     }
 
     var body: some View {
-        ZStack {
-            BuddyTriangleShape()
-                .fill(tikoAccentColor)
-                .frame(width: 16, height: 16)
-                .rotationEffect(.degrees(-35))
-                .shadow(color: tikoAccentColor, radius: 8)
-                .position(buddyPosition)
-                .opacity(isCursorOnThisScreen && companionManager.voiceState == .idle ? buddyOpacity : 0)
+        // The timeline only ticks during a flight, redrawing the buddy every frame along its arc.
+        TimelineView(.animation(minimumInterval: nil, paused: !isFlying)) { timeline in
+            let pose = buddyPose(at: timeline.date)
+            let isFollowingCursorHere = flightMode == .followingCursor && isBuddyOnThisScreen
 
-            // The waveform and spinner are inserted only in their state, so their
-            // animations aren't running in the background the rest of the time.
-            if isCursorOnThisScreen && companionManager.voiceState == .listening {
-                BuddyWaveformView(audioLevel: microphoneCapture.audioLevel)
-                    .position(buddyPosition)
-                    .transition(.opacity)
-            }
+            ZStack {
+                BuddyTriangleShape()
+                    .fill(tikoAccentColor)
+                    .frame(width: 16, height: 16)
+                    .rotationEffect(.degrees(pose.rotationDegrees))
+                    // The glow flares while flying, along with the swell in size.
+                    .shadow(color: tikoAccentColor, radius: 8 + (pose.scale - 1) * 20)
+                    .scaleEffect(pose.scale)
+                    .position(pose.position)
+                    .opacity(isBuddyOnThisScreen && (flightMode != .followingCursor || companionManager.voiceState == .idle) ? buddyOpacity : 0)
 
-            if isCursorOnThisScreen && isWorkingOnAnswer {
-                BuddySpinnerView()
-                    .position(buddyPosition)
-                    .transition(.opacity)
-            }
+                // The waveform and spinner are inserted only in their state, so their
+                // animations aren't running in the background the rest of the time.
+                if isFollowingCursorHere && companionManager.voiceState == .listening {
+                    BuddyWaveformView(audioLevel: microphoneCapture.audioLevel)
+                        .position(pose.position)
+                        .transition(.opacity)
+                }
 
-            if isCursorOnThisScreen, let visibleBubble {
-                bubble(visibleBubble)
+                if isFollowingCursorHere && isWorkingOnAnswer {
+                    BuddySpinnerView()
+                        .position(pose.position)
+                        .transition(.opacity)
+                }
+
+                if isBuddyOnThisScreen, let visibleBubble {
+                    bubble(visibleBubble, at: pose.position)
+                }
             }
+            .frame(width: screenFrame.width, height: screenFrame.height)
+            // Following the cursor, a quick bouncy spring makes the buddy trail it like
+            // something alive. In flight, every frame is placed exactly, so no animation.
+            .animation(flightMode == .followingCursor ? .spring(response: 0.2, dampingFraction: 0.6) : nil, value: pose.position)
         }
-        .frame(width: screenFrame.width, height: screenFrame.height)
-        // A quick, slightly bouncy spring makes the buddy trail the cursor
-        // like something alive instead of being glued to it.
-        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: buddyPosition)
         .animation(.easeInOut(duration: 0.15), value: companionManager.voiceState)
         .onAppear {
             withAnimation(.easeIn(duration: 0.4)) {
@@ -192,11 +236,113 @@ struct BuddyOverlayView: View {
                 playWelcomeBubble()
             }
         }
+        .onDisappear {
+            flightLandingTask?.cancel()
+        }
+        .onChange(of: companionManager.pointingTarget) { _, newPointingTarget in
+            handlePointingTargetChange(newPointingTarget)
+        }
+        .onChange(of: cursorTracker.mouseLocation) { _, newMouseLocation in
+            snapHomeIfMouseMovedAwayDuringReturn(newMouseLocation)
+        }
+        .onChange(of: companionManager.voiceState) { _, newVoiceState in
+            // Talking to Tiko again brings the buddy straight back to the cursor.
+            if newVoiceState == .listening && flightMode != .followingCursor {
+                resumeFollowingCursor()
+            }
+        }
     }
+
+    // MARK: - Flight
+
+    private func buddyPose(at date: Date) -> BuddyPose {
+        switch flightMode {
+        case .followingCursor:
+            return BuddyPose(position: cursorFollowingPosition, rotationDegrees: BuddyFlight.restingRotationDegrees, scale: 1)
+        case .pointingAtTarget:
+            return BuddyPose(position: landedPosition, rotationDegrees: BuddyFlight.restingRotationDegrees, scale: 1)
+        case .flyingToTarget, .flyingBackToCursor:
+            guard let activeFlight else {
+                return BuddyPose(position: cursorFollowingPosition, rotationDegrees: BuddyFlight.restingRotationDegrees, scale: 1)
+            }
+            return activeFlight.pose(afterSeconds: date.timeIntervalSince(activeFlightStartDate))
+        }
+    }
+
+    private func handlePointingTargetChange(_ newPointingTarget: PointingTarget?) {
+        guard let newPointingTarget else {
+            // The manager is done pointing: fly home if this screen's buddy was out.
+            if flightMode == .flyingToTarget || flightMode == .pointingAtTarget {
+                flyBackToCursor()
+            }
+            return
+        }
+        guard newPointingTarget.displayFrame == screenFrame else { return }
+
+        let targetInView = CGPoint(
+            x: newPointingTarget.location.x - screenFrame.minX,
+            y: screenFrame.maxY - newPointingTarget.location.y
+        )
+        // Land just below and to the right of the element: the tilted triangle's
+        // tip then touches the element without covering it.
+        let landingPosition = CGPoint(
+            x: min(max(targetInView.x + 8, 20), screenFrame.width - 20),
+            y: min(max(targetInView.y + 12, 20), screenFrame.height - 20)
+        )
+
+        startFlight(to: landingPosition, as: .flyingToTarget) {
+            landedPosition = landingPosition
+            // Ease from the flight angle back to the pointer tilt.
+            withAnimation(.easeInOut(duration: 0.3)) {
+                flightMode = .pointingAtTarget
+            }
+        }
+    }
+
+    private func flyBackToCursor() {
+        mouseLocationWhenReturnStarted = cursorTracker.mouseLocation
+        startFlight(to: cursorFollowingPosition, as: .flyingBackToCursor) {
+            resumeFollowingCursor()
+        }
+    }
+
+    private func startFlight(to destination: CGPoint, as newFlightMode: BuddyFlightMode, onLanding: @escaping () -> Void) {
+        let flight = BuddyFlight(from: buddyPose(at: Date()).position, to: destination)
+        activeFlight = flight
+        activeFlightStartDate = Date()
+        flightMode = newFlightMode
+
+        flightLandingTask?.cancel()
+        flightLandingTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(flight.duration))
+            guard !Task.isCancelled else { return }
+            onLanding()
+        }
+    }
+
+    private func resumeFollowingCursor() {
+        flightLandingTask?.cancel()
+        flightLandingTask = nil
+        activeFlight = nil
+        flightMode = .followingCursor
+    }
+
+    private func snapHomeIfMouseMovedAwayDuringReturn(_ newMouseLocation: CGPoint) {
+        guard flightMode == .flyingBackToCursor else { return }
+        let distanceMoved = hypot(
+            newMouseLocation.x - mouseLocationWhenReturnStarted.x,
+            newMouseLocation.y - mouseLocationWhenReturnStarted.y
+        )
+        if distanceMoved > Self.returnFlightCancelDistance {
+            resumeFollowingCursor()
+        }
+    }
+
+    // MARK: - Bubbles
 
     /// Hangs the bubble off the buddy's side — flipped left or upward when the
     /// buddy is close to the screen's right or bottom edge, so it stays readable.
-    private func bubble(_ visibleBubble: VisibleBubble) -> some View {
+    private func bubble(_ visibleBubble: VisibleBubble, at buddyPosition: CGPoint) -> some View {
         let bubbleWidth = BuddySpeechBubble.maximumWidth(isReply: visibleBubble.isReply)
         let roughBubbleHeight: CGFloat = visibleBubble.isReply ? 170 : 70
         let opensLeftward = buddyPosition.x + 14 + bubbleWidth > screenFrame.width - Self.screenEdgeMargin

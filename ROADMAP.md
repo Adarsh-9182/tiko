@@ -36,7 +36,7 @@ Beyond fixing those, Tiko adds:
 | 4 | Push-to-talk | Listen-only CGEvent tap for ⌃ Control + ⌥ Option; a third key cancels; waveform from mic level | done |
 | 5 | Voice → text | AVAudioEngine → on-device `SFSpeechRecognizer` (en-IN); live transcript bubble | done |
 | 6 | Brain | ScreenCaptureKit screenshots + cursor crop + transcript + last 10 exchanges → Gemini; model fallback on rate limits | done |
-| 7 | Pointing | `[POINT:x,y:label:screenN]` on Gemini's 0–1000 grid → AppKit coordinates; clamping; bezier flight; zoom refinement | |
+| 7 | Pointing | `[POINT:x,y:label:screenN]` on Gemini's 0–1000 grid → AppKit coordinates; clamping; bezier flight; zoom refinement | done |
 | 8 | Voice out | `AVSpeechSynthesizer` plus captions; interruptible | |
 | 9 | Guided tours | Multi-step point tags; tap the shortcut for the next step | |
 | 10 | Settings | Hotkey, language, voice, history, copy last answer | |
