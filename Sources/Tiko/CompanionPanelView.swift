@@ -32,6 +32,30 @@ struct CompanionPanelView: View {
 
             Divider()
 
+            if let activeTour = companionManager.activeTour {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Guided tour · step \(activeTour.shownSteps.count) shown")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(tikoAccentColor)
+                        Text(activeTour.goal)
+                            .font(.system(size: 12))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Tap ⌃⌥ or say \"next\" for the next step")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 4)
+                    Button("End tour") {
+                        companionManager.endTour()
+                    }
+                    .controlSize(.small)
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tikoAccentColor.opacity(0.1)))
+            }
+
             pushToTalkHint
 
             if let lastTranscript = companionManager.lastTranscript {

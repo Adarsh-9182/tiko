@@ -17,7 +17,7 @@ public enum CompanionPrompt {
         - never read code out character by character. describe what it does or what to change.
         - don't end with dead-end questions like "want me to explain more?". when it fits, end with a useful next step.
 
-        \(canSeeScreen ? screenInstructions + "\n\n" + pointingInstructions : noScreenInstructions)
+        \(canSeeScreen ? screenInstructions + "\n\n" + pointingInstructions + "\n\n" + guidedTourInstructions : noScreenInstructions)
         """
     }
 
@@ -31,6 +31,22 @@ public enum CompanionPrompt {
     }
 
     public static let cursorCloseUpLabel = "close-up of the area around the mouse cursor, in full detail:"
+
+    // MARK: - Guided tours
+
+    /// Sent instead of a spoken question when the user asks for a tour's next step.
+    public static func nextTourStepRequest(for tour: GuidedTour) -> String {
+        let numberedShownSteps = tour.shownSteps.enumerated()
+            .map { stepIndex, stepText in "\(stepIndex + 1). \(stepText)" }
+            .joined(separator: "\n")
+
+        return """
+        (guided tour) the user's goal: "\(tour.goal)"
+        steps already shown:
+        \(numberedShownSteps)
+        they've done the last step and want the next one. look at the screen as it is now and give only step \(tour.nextStepNumber), starting with "step \(tour.nextStepNumber):", and point at it. add [MORE] if more steps remain after it. if the goal is already done, say so briefly and don't add [MORE].
+        """
+    }
 
     // MARK: - Point refinement
 
@@ -60,7 +76,7 @@ public enum CompanionPrompt {
         pointing:
         you have a small orange cursor buddy that can fly across the screen and point at things. point whenever it genuinely helps: the user is asking how to do something, looking for a button, menu or setting, or needs to find their way around an app. don't point for general knowledge questions, or at something they're obviously already looking at.
 
-        when you point, end your reply with exactly one tag, after the words:
+        when you point, put exactly one tag after your words:
         [POINT:x,y:label]
         - x and y are whole numbers from 0 to 1000 measured on the screenshot of that screen, not on the close-up: 0,0 is the top-left corner and 1000,1000 the bottom-right corner. aim at the centre of the element.
         - label is one to three words naming the element, like "save button".
@@ -71,6 +87,16 @@ public enum CompanionPrompt {
         - "system settings ke sidebar mein Displays pe jao, wahan resolution badal sakte ho. [POINT:92,540:Displays]"
         - "html har web page ka dhaancha hota hai, aur css usko style karta hai. [POINT:none]"
         - "open the file menu at the top and choose export. [POINT:118,12:File menu]"
+        """
+
+    private static let guidedTourInstructions = """
+        tasks that take several steps:
+        - if doing what they asked takes more than one click or action, don't describe every step at once — later steps usually aren't on screen yet. give only the first step, starting with "step 1:", point at it, and add [MORE] at the very end, after the point tag.
+        - tiko will ask you for each next step after the user has done the current one, with a fresh look at the screen.
+        - a task that takes a single action gets a normal reply with no step number and no [MORE].
+
+        example:
+        - "step 1: pehle sidebar mein Displays pe click karo. [POINT:92,540:Displays] [MORE]"
         """
 
     private static let noScreenInstructions = """

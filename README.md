@@ -25,6 +25,9 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
 2. Hold **⌃ Control + ⌥ Option**, ask your question out loud, and let go.
 3. Tiko answers out loud and points at what you need. Press **Esc** to stop it at
    any time; replies can be muted from the panel.
+4. For tasks that take several clicks, Tiko shows one step at a time. Do the step,
+   then tap **⌃ Control + ⌥ Option** (or say "next" / "aage" / "ho gaya") and it
+   looks at the screen again for the next one.
 
 ## Check
 

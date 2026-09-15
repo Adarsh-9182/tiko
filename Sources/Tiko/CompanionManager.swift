@@ -39,7 +39,7 @@ struct PointingTarget: Equatable {
 }
 
 /// Tiko's central state: permissions, the cursor buddy, push-to-talk, speech
-/// recognition, Gemini, pointing and speaking replies aloud.
+/// recognition, Gemini, pointing, speaking replies and guided tours.
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var permissions = PermissionSnapshot()
@@ -51,6 +51,8 @@ final class CompanionManager: ObservableObject {
     @Published private(set) var buddyMessage: BuddyMessage?
     /// Where the buddy is pointing right now; nil sends it back to the cursor.
     @Published private(set) var pointingTarget: PointingTarget?
+    /// The multi-step task the user is being walked through, if any.
+    @Published private(set) var activeTour: GuidedTour?
     /// The last thing the user said, as recognised text.
     @Published private(set) var lastTranscript: String?
     @Published private(set) var lastReply: GeminiReply?
@@ -93,6 +95,7 @@ final class CompanionManager: ObservableObject {
     private var buddyMessageDismissTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
     private var replyTask: Task<Void, Never>?
+    private var listeningStartTime = ContinuousClock.now
 
     private static let buddyVisibleDefaultsKey = "isBuddyVisible"
     private static let speakRepliesDefaultsKey = "isSpeakingRepliesEnabled"
@@ -103,6 +106,12 @@ final class CompanionManager: ObservableObject {
     private static let pointRefinementRegionSize: CGFloat = 400
     /// The double-check is a bonus; past this, point at the first guess instead of making the user wait.
     private static let pointRefinementTimeLimit: Duration = .seconds(5)
+    /// A press shorter than this is a tap, not someone talking.
+    private static let quickTapLimit: Duration = .milliseconds(450)
+    /// How long a tour step waits for the user before the tour quietly ends.
+    private static let tourStepPatience: Duration = .seconds(60)
+    /// What a "next step" request is remembered as in the conversation history.
+    private static let nextStepHistoryText = "(next step)"
 
     init() {
         let savedSettings = TikoSettings.load()
@@ -216,6 +225,19 @@ final class CompanionManager: ObservableObject {
         NSPasteboard.general.setString(lastReply.text, forType: .string)
     }
 
+    /// Ends the guided tour from the panel, along with the step still on screen.
+    func endTour() {
+        guard activeTour != nil else { return }
+        activeTour = nil
+        replyTask?.cancel()
+        replyTask = nil
+        buddyVoice.stop()
+        if voiceState == .thinking {
+            voiceState = .idle
+        }
+        clearBuddyMessage()
+    }
+
     // MARK: - Keyboard
 
     private func handlePushToTalkTransition(_ shortcutTransition: PushToTalkShortcutTransition) {
@@ -231,14 +253,15 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    /// Esc: stop speaking, thinking and pointing at once. Unlike Clicky, Tiko
-    /// never has to be sat through once it starts talking.
+    /// Esc: stop speaking, thinking, pointing and any tour at once. Unlike
+    /// Clicky, Tiko never has to be sat through once it starts talking.
     private func stopEverything() {
         let isTikoBusy = buddyVoice.isSpeaking
             || voiceState == .transcribing
             || voiceState == .thinking
             || buddyMessage != nil
             || pointingTarget != nil
+            || activeTour != nil
         guard isTikoBusy, voiceState != .listening else { return }
 
         transcriptionTask?.cancel()
@@ -247,6 +270,7 @@ final class CompanionManager: ObservableObject {
         replyTask = nil
         speechTranscriber.cancelSession()
         buddyVoice.stop()
+        activeTour = nil
         voiceState = .idle
         clearBuddyMessage()
     }
@@ -255,7 +279,8 @@ final class CompanionManager: ObservableObject {
 
     private func startListening() {
         guard voiceState != .listening else { return }
-        // A new question replaces anything still in progress for the previous one.
+        // A new press replaces anything still in progress for the previous question.
+        // A tour in progress survives: this press may be the user asking for its next step.
         transcriptionTask?.cancel()
         transcriptionTask = nil
         replyTask?.cancel()
@@ -277,6 +302,7 @@ final class CompanionManager: ObservableObject {
                 speechAudioSink.append(audioBuffer)
             })
             clearBuddyMessage()
+            listeningStartTime = ContinuousClock.now
             voiceState = .listening
             applyBuddyVisibility()
         } catch {
@@ -289,6 +315,7 @@ final class CompanionManager: ObservableObject {
     private func finishListening() {
         guard voiceState == .listening else { return }
         microphoneCapture.stop()
+        let wasQuickTap = ContinuousClock.now - listeningStartTime < Self.quickTapLimit
         voiceState = .transcribing
 
         // Capture the screen the moment the user lets go — that's what they were
@@ -297,11 +324,24 @@ final class CompanionManager: ObservableObject {
             ? Task { try? await ScreenCaptureService.captureScreenContext() }
             : nil
 
+        // During a tour, a quick tap means "next step", so there's nothing to transcribe.
+        if let activeTour, wasQuickTap {
+            speechTranscriber.cancelSession()
+            continueTour(activeTour, screenContextTask: screenContextTask)
+            return
+        }
+
         transcriptionTask = Task { [weak self] in
             guard let self else { return }
             let finalTranscript = await self.speechTranscriber.finishSession()
             // The user may have pressed the shortcut again, or Esc, while we waited.
             guard !Task.isCancelled, self.voiceState == .transcribing else { return }
+
+            if let activeTour = self.activeTour,
+               finalTranscript.isEmpty || TourCommand.isNextStepRequest(finalTranscript) {
+                self.continueTour(activeTour, screenContextTask: screenContextTask)
+                return
+            }
 
             guard !finalTranscript.isEmpty else {
                 self.voiceState = .idle
@@ -309,7 +349,9 @@ final class CompanionManager: ObservableObject {
                 return
             }
             self.lastTranscript = finalTranscript
-            self.answer(finalTranscript, screenContextTask: screenContextTask)
+            // Any real new question ends a tour that was in progress.
+            self.activeTour = nil
+            self.answer(question: finalTranscript, screenContextTask: screenContextTask, continuingTour: nil)
         }
     }
 
@@ -323,7 +365,18 @@ final class CompanionManager: ObservableObject {
 
     // MARK: - Answering
 
-    private func answer(_ transcript: String, screenContextTask: Task<ScreenContext?, Never>?) {
+    private func continueTour(_ tour: GuidedTour, screenContextTask: Task<ScreenContext?, Never>?) {
+        answer(
+            question: CompanionPrompt.nextTourStepRequest(for: tour),
+            screenContextTask: screenContextTask,
+            continuingTour: tour
+        )
+    }
+
+    /// - Parameters:
+    ///   - question: What Gemini is asked — the user's words, or a next-step request during a tour.
+    ///   - continuingTour: The tour this answer is the next step of, if any.
+    private func answer(question: String, screenContextTask: Task<ScreenContext?, Never>?, continuingTour: GuidedTour?) {
         replyTask?.cancel()
         voiceState = .thinking
 
@@ -331,19 +384,41 @@ final class CompanionManager: ObservableObject {
             guard let self else { return }
             do {
                 let screenContext = await screenContextTask?.value
-                let reply = try await self.fetchReply(to: transcript, screenContext: screenContext)
+                let reply = try await self.fetchReply(to: question, screenContext: screenContext)
                 guard !Task.isCancelled else { return }
 
-                let parsedReply = PointTag.parse(reply.text)
-                let displayText = parsedReply.displayText.isEmpty ? "yahan dekho" : parsedReply.displayText
-                self.rememberExchange(ConversationExchange(userText: transcript, tikoReply: displayText))
+                let (textWithoutTourTag, hasMoreSteps) = TourTag.strip(reply.text)
+                let parsedReply = PointTag.parse(textWithoutTourTag)
+                // A reply with more steps starts or continues a tour; one without ends it.
+                let isTourStep = hasMoreSteps || continuingTour != nil
+                let replyText = isTourStep
+                    ? parsedReply.displayText
+                    : TourTag.removingLeadingStepNumber(parsedReply.displayText)
+                let displayText = replyText.isEmpty ? "yahan dekho" : replyText
+                let tourGoal = continuingTour?.goal ?? question
+
+                self.rememberExchange(ConversationExchange(
+                    userText: continuingTour == nil ? question : Self.nextStepHistoryText,
+                    tikoReply: displayText
+                ))
                 self.lastReply = GeminiReply(text: displayText, modelName: reply.modelName)
                 self.lastPointingTarget = nil
                 self.voiceState = .idle
 
+                let stepNumber = continuingTour?.nextStepNumber ?? 1
+                self.activeTour = hasMoreSteps
+                    ? GuidedTour(goal: tourGoal, shownSteps: (continuingTour?.shownSteps ?? []) + [displayText])
+                    : nil
+
+                // The step hint is shown under the reply but never spoken.
+                let tourHint = hasMoreSteps
+                    ? "step \(stepNumber) · agle step ke liye ⌃⌥ tap karo"
+                    : "step \(stepNumber) · bas, ho gaya"
+                let bubbleText = isTourStep ? "\(displayText)\n\(tourHint)" : displayText
+
                 // Show the words and start speaking right away; the buddy flies over
                 // once the point is double-checked. The bubble stays until both are done.
-                let replyMessage = BuddyMessage(text: displayText, isReply: true)
+                let replyMessage = BuddyMessage(text: bubbleText, isReply: true)
                 self.showBuddyMessage(replyMessage, for: nil)
                 let replyShownTime = ContinuousClock.now
                 let speakingTask: Task<Void, Never>? = self.isSpeakingRepliesEnabled
@@ -351,7 +426,7 @@ final class CompanionManager: ObservableObject {
                     : nil
 
                 if let screenContext,
-                   let resolvedTarget = await self.resolvePointingTarget(for: parsedReply, question: transcript, screenContext: screenContext) {
+                   let resolvedTarget = await self.resolvePointingTarget(for: parsedReply, question: tourGoal, screenContext: screenContext) {
                     // The user may have asked something new, or pressed Esc, meanwhile.
                     guard !Task.isCancelled, self.buddyMessage == replyMessage else { return }
                     self.pointingTarget = resolvedTarget
@@ -361,11 +436,16 @@ final class CompanionManager: ObservableObject {
                 await speakingTask?.value
                 guard !Task.isCancelled, self.buddyMessage == replyMessage else { return }
 
-                // Keep the reply up for at least its reading time, and linger a moment
-                // after the last word — longer when the buddy has only just landed.
-                let remainingReadingTime = Self.readingDuration(for: displayText) - (ContinuousClock.now - replyShownTime)
-                let lingerTime: Duration = self.pointingTarget != nil ? .seconds(3) : .seconds(1.5)
-                self.scheduleBuddyMessageDismissal(after: max(remainingReadingTime, lingerTime))
+                if hasMoreSteps {
+                    // Wait on this step while the user does it; give up quietly after a while.
+                    self.scheduleBuddyMessageDismissal(after: Self.tourStepPatience, endingTour: true)
+                } else {
+                    // Keep the reply up for at least its reading time, and linger a moment
+                    // after the last word — longer when the buddy has only just landed.
+                    let remainingReadingTime = Self.readingDuration(for: displayText) - (ContinuousClock.now - replyShownTime)
+                    let lingerTime: Duration = self.pointingTarget != nil ? .seconds(3) : .seconds(1.5)
+                    self.scheduleBuddyMessageDismissal(after: max(remainingReadingTime, lingerTime))
+                }
             } catch {
                 // A cancelled request means the user asked something new or pressed Esc; stay quiet.
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return }
@@ -375,7 +455,7 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    private func fetchReply(to transcript: String, screenContext: ScreenContext?) async throws -> GeminiReply {
+    private func fetchReply(to question: String, screenContext: ScreenContext?) async throws -> GeminiReply {
         guard case .ready(let modelNames) = geminiKeyStatus, !settings.geminiAPIKey.isEmpty else {
             throw GeminiClientError.missingAPIKey
         }
@@ -385,7 +465,7 @@ final class CompanionManager: ObservableObject {
             systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: screenContext != nil),
             history: conversationHistory,
             images: screenContext?.geminiImages ?? [],
-            userText: transcript
+            userText: question
         )
     }
 
@@ -510,11 +590,16 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    private func scheduleBuddyMessageDismissal(after displayDuration: Duration) {
+    /// - Parameter endingTour: Also ends the guided tour when the time runs out.
+    ///   Pressing the shortcut cancels this, so asking for the next step keeps the tour going.
+    private func scheduleBuddyMessageDismissal(after displayDuration: Duration, endingTour: Bool = false) {
         buddyMessageDismissTask?.cancel()
         buddyMessageDismissTask = Task { [weak self] in
             try? await Task.sleep(for: displayDuration)
             guard !Task.isCancelled else { return }
+            if endingTour {
+                self?.activeTour = nil
+            }
             self?.clearBuddyMessage()
         }
     }

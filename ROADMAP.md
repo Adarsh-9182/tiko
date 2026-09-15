@@ -38,7 +38,7 @@ Beyond fixing those, Tiko adds:
 | 6 | Brain | ScreenCaptureKit screenshots + cursor crop + transcript + last 10 exchanges → Gemini; model fallback on rate limits | done |
 | 7 | Pointing | `[POINT:x,y:label:screenN]` on Gemini's 0–1000 grid → AppKit coordinates; clamping; bezier flight; zoom refinement | done |
 | 8 | Voice out | `AVSpeechSynthesizer` plus captions; interruptible | done |
-| 9 | Guided tours | Multi-step point tags; tap the shortcut for the next step | |
+| 9 | Guided tours | Multi-step point tags; tap the shortcut for the next step | done |
 | 10 | Settings | Hotkey, language, voice, history, copy last answer | |
 | 11 | Accuracy benchmark | Synthetic screens with known targets; single-pass vs zoom-refined hit rate | |
 | 12 | Distribution | Unsigned zip and install guide; Developer ID signing when budget allows | |
