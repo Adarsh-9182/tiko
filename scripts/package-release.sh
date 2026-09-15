@@ -6,7 +6,8 @@ set -euo pipefail
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_root"
 
-./scripts/build-app.sh
+# Releases run on both Apple silicon and Intel Macs.
+./scripts/build-app.sh --universal
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
 release_folder="build/release"

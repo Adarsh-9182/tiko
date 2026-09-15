@@ -6,7 +6,8 @@ walks through that and everything else, start to finish.
 
 ## What you need
 
-- A Mac with Apple silicon (M1 or later) running macOS 14 Sonoma or newer
+- A Mac running macOS 14 Sonoma or newer — Apple silicon or Intel (the Intel build
+  hasn't been tried on a real Intel Mac yet; please open an issue if it misbehaves)
 - A free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 - An internet connection for answers (speech recognition itself runs on your Mac)
 

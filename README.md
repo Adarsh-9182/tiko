@@ -14,8 +14,9 @@ launch needs one extra click in System Settings.
 
 ## Build
 
-Needs an Apple silicon Mac on macOS 14+ and the Command Line Tools (no Xcode).
-`./scripts/package-release.sh` builds the release zip and its SHA-256 checksum.
+Needs macOS 14+ and the Command Line Tools (no Xcode). `./scripts/build-app.sh --universal`
+builds one app for Apple silicon and Intel; `./scripts/package-release.sh` does that and
+packs the release zip with its SHA-256 checksum.
 
 ```bash
 ./scripts/build-app.sh
