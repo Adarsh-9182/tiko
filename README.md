@@ -19,7 +19,7 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
 ## Roadmap
 
 1. Menu bar app skeleton ← **done**
-2. Permissions (accessibility, screen recording, microphone, speech)
+2. Permissions (accessibility, screen recording, microphone, speech) ← **done**
 3. Cursor buddy overlay
 4. Push-to-talk shortcut (⌃ control + ⌥ option)
 5. Voice → text (Apple Speech, en-IN, on-device)

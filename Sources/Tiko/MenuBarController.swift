@@ -6,8 +6,10 @@ import SwiftUI
 final class MenuBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let panelPopover = NSPopover()
+    private let companionManager: CompanionManager
 
-    override init() {
+    init(companionManager: CompanionManager) {
+        self.companionManager = companionManager
         super.init()
         configureMenuBarButton()
         configurePanelPopover()
@@ -25,7 +27,7 @@ final class MenuBarController: NSObject {
     }
 
     private func configurePanelPopover() {
-        let panelHostingController = NSHostingController(rootView: CompanionPanelView())
+        let panelHostingController = NSHostingController(rootView: CompanionPanelView(companionManager: companionManager))
         // Let the SwiftUI view decide the panel's size instead of hardcoding it here.
         panelHostingController.sizingOptions = .preferredContentSize
         panelPopover.contentViewController = panelHostingController
@@ -40,6 +42,8 @@ final class MenuBarController: NSObject {
         if panelPopover.isShown {
             panelPopover.performClose(sender)
         } else {
+            // Check right away so the panel never opens showing stale permissions.
+            companionManager.refreshPermissions()
             // An accessory app is never frontmost on its own. Activating it lets
             // the panel's controls take keyboard input (the API key field, later).
             NSApp.activate()
