@@ -37,7 +37,10 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
 ```bash
 swift run TikoCheck          # offline checks of the Gemini client, model choice, settings
 swift run TikoCheck --live   # also asks Gemini a real question using your saved key
+swift run TikoBenchmark      # measures pointing accuracy; writes benchmarks/RESULTS.md
 ```
+
+Latest pointing results: [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 ## Roadmap
 

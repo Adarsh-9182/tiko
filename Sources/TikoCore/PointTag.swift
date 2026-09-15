@@ -14,11 +14,13 @@ public struct PointTagParseResult: Equatable {
 
 /// Reads the `[POINT:x,y:label:screenN]` tag Gemini adds when it wants the buddy to point.
 public enum PointTag {
-    // Tolerates the spaces models sometimes add, and a minus sign on a
-    // coordinate. Slightly off-screen points are clamped onto the screen later
-    // rather than being thrown away.
+    // Tolerates what models actually send besides the requested format: extra
+    // spaces, a minus sign on a coordinate (clamped onto the screen later rather
+    // than thrown away), and a comma instead of a colon before the label or the
+    // screen number — the benchmark found "[POINT:185,119,filter button]" often
+    // enough that rejecting it silently dropped real answers.
     private static let pointTagExpression = try! NSRegularExpression(
-        pattern: #"\[POINT:\s*(?:none|(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*:\s*([^\]:]+?))?(?:\s*:\s*screen\s*(\d+))?)\s*\]"#,
+        pattern: #"\[POINT:\s*(?:none|(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*[:,]\s*(?!screen\s*\d)([^\]:,]+?))?(?:\s*[:,]\s*screen\s*(\d+))?)\s*\]"#,
         options: [.caseInsensitive]
     )
 

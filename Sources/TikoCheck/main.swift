@@ -2,12 +2,14 @@ import AppKit
 import AVFoundation
 import Foundation
 import TikoCore
+import TikoFixtures
 
 // Checks Tiko's logic without its UI or any macOS permissions.
 //   swift run TikoCheck          offline checks only
 //   swift run TikoCheck --live   also asks Gemini real questions: pointing on a
 //                                rendered screen and a two-step guided tour
 //                                (needs a key: GEMINI_API_KEY, or one saved in Tiko's panel)
+// For accuracy numbers across many screens, run `swift run TikoBenchmark`.
 
 var failedCheckCount = 0
 
@@ -102,6 +104,18 @@ check(spacedReply.normalizedPoint == CGPoint(x: 120, y: 880) && spacedReply.elem
 
 let offScreenReply = PointTag.parse("upar menu bar mein. [POINT:-4,1003:menu bar]")
 check(offScreenReply.normalizedPoint == CGPoint(x: -4, y: 1003), "slightly off-screen coordinates are kept, not dropped")
+
+// Formats the benchmark caught Gemini sending instead of the requested colons.
+let commaLabelReply = PointTag.parse("upar toolbar mein filter button pe click karo. [POINT:185,119,filter button]")
+check(
+    commaLabelReply.normalizedPoint == CGPoint(x: 185, y: 119) && commaLabelReply.elementLabel == "filter button"
+        && commaLabelReply.displayText == "upar toolbar mein filter button pe click karo.",
+    "a comma before the label still counts as a point"
+)
+let commaScreenReply = PointTag.parse("wo doosri screen pe hai. [POINT:400,300,terminal,screen2]")
+check(commaScreenReply.elementLabel == "terminal" && commaScreenReply.screenNumber == 2, "commas before the label and screen number both work")
+let screenWithoutLabelReply = PointTag.parse("yahan dekho [POINT:400,300:screen2]")
+check(screenWithoutLabelReply.screenNumber == 2 && screenWithoutLabelReply.elementLabel == nil, "a screen number without a label isn't mistaken for a label")
 
 // MARK: - Guided tours
 
@@ -224,8 +238,7 @@ check(
     "a web address is said as \"link\""
 )
 if let chosenVoice = SpeechVoicePicker.bestVoice() {
-    let qualityName = chosenVoice.quality == .premium ? "premium" : chosenVoice.quality == .enhanced ? "enhanced" : "basic"
-    print("  voice on this Mac: \(chosenVoice.name), \(chosenVoice.language), \(qualityName) quality")
+    print("  voice on this Mac: \(chosenVoice.name), \(chosenVoice.language), \(SpeechVoicePicker.qualityName(of: chosenVoice)) quality")
     check(!chosenVoice.voiceTraits.contains(.isNoveltyVoice), "never picks a novelty voice")
     let audioFrameCount = await synthesizedAudioFrameCount(of: "Appearance pe click karo, wahan dark mode mil jayega.", voice: chosenVoice)
     check(audioFrameCount > 0, "the voice turns a Hinglish reply into audio (\(audioFrameCount) frames, rendered silently)")
@@ -252,7 +265,7 @@ check(!PushToTalkShortcut.rightOption.isHeld(modifierFlagsRawValue: 0x80000 | 0x
 print("Languages and voices")
 check(SpeechLanguage.allCases.map(\.localeIdentifier) == ["en-IN", "en-US", "hi-IN"], "Hinglish first, then US English and Hindi")
 let voiceOptions = SpeechVoicePicker.voiceOptions()
-print("  voices offered on this Mac: \(voiceOptions.map { "\($0.name) (\($0.language), \($0.qualityName))" }.joined(separator: ", "))")
+print("  voices offered on this Mac: \(voiceOptions.count)")
 check(!voiceOptions.isEmpty, "Settings has voices to offer")
 check(voiceOptions.first?.language == "en-IN", "Indian English voices are listed first")
 check(SpeechVoicePicker.voice(withIdentifier: "no.such.voice")?.identifier == SpeechVoicePicker.bestVoice()?.identifier, "a voice that's gone from the Mac falls back to the best installed one")
@@ -281,6 +294,25 @@ try? FileManager.default.removeItem(at: temporaryHistoryFolderURL)
 conversationLog.removeAll()
 check(conversationLog.entries.isEmpty, "clearing history removes every answer")
 
+// MARK: - Benchmark screens
+
+print("Benchmark screens")
+let benchmarkScreens = PointingBenchmark.renderScreens(scale: 1)
+check(benchmarkScreens.count == PointingBenchmark.screenNames.count, "every benchmark screen renders")
+let casesWithMissingTargets = PointingBenchmark.cases.filter { benchmarkCase in
+    benchmarkScreens[benchmarkCase.screenName]?.elementRects[benchmarkCase.targetElementKey] == nil
+}
+check(
+    casesWithMissingTargets.isEmpty,
+    "every benchmark question's target is drawn on its screen\(casesWithMissingTargets.isEmpty ? "" : " (missing: \(casesWithMissingTargets.map(\.targetElementKey).joined(separator: ", ")))")"
+)
+let offScreenTargets = PointingBenchmark.cases.filter { benchmarkCase in
+    guard let screen = benchmarkScreens[benchmarkCase.screenName],
+          let targetRect = screen.elementRects[benchmarkCase.targetElementKey] else { return false }
+    return !CGRect(origin: .zero, size: screen.pointSize).contains(targetRect)
+}
+check(offScreenTargets.isEmpty, "every benchmark target lies fully on its screen")
+
 // MARK: - Settings
 
 print("Settings file")
@@ -301,89 +333,6 @@ check(TikoSettings.load(from: temporarySettingsFileURL) == TikoSettings(), "a mi
 
 // MARK: - Live
 
-/// A made-up System Settings window with known contents, standing in for a
-/// 1280×800-point display.
-struct FakeScreen {
-    let jpegData: Data
-    let image: CGImage
-    let size: CGSize
-    /// Where each element was drawn, measured from the top-left. Keys look like
-    /// "sidebar:Bluetooth", "row:Storage" or "switch:Bluetooth".
-    let elementRects: [String: CGRect]
-}
-
-func renderFakeSettingsScreen(selectedPane: String, paneRows: [String], switchRow: String? = nil) -> FakeScreen? {
-    let pixelWidth = 1280
-    let pixelHeight = 800
-    guard let bitmap = NSBitmapImageRep(
-        bitmapDataPlanes: nil, pixelsWide: pixelWidth, pixelsHigh: pixelHeight,
-        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-    ), let graphicsContext = NSGraphicsContext(bitmapImageRep: bitmap) else {
-        return nil
-    }
-
-    var elementRects: [String: CGRect] = [:]
-
-    NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = graphicsContext
-
-    NSColor(white: 0.97, alpha: 1).setFill()
-    NSRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight).fill()
-    NSColor(white: 0.89, alpha: 1).setFill()
-    NSRect(x: 0, y: 0, width: 280, height: pixelHeight).fill()
-
-    // AppKit draws from the bottom-left, so every "distance from the top" is converted.
-    func appKitRect(x: CGFloat, distanceFromTop: CGFloat, width: CGFloat, height: CGFloat) -> NSRect {
-        NSRect(x: x, y: CGFloat(pixelHeight) - distanceFromTop - height, width: width, height: height)
-    }
-
-    func drawText(_ text: String, x: CGFloat, distanceFromTop: CGFloat, fontSize: CGFloat, weight: NSFont.Weight = .regular, elementKey: String? = nil) {
-        let textAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: fontSize, weight: weight),
-            .foregroundColor: NSColor.black
-        ]
-        let textSize = (text as NSString).size(withAttributes: textAttributes)
-        (text as NSString).draw(at: appKitRect(x: x, distanceFromTop: distanceFromTop, width: textSize.width, height: textSize.height).origin, withAttributes: textAttributes)
-        if let elementKey {
-            elementRects[elementKey] = CGRect(x: x, y: distanceFromTop, width: textSize.width, height: textSize.height)
-        }
-    }
-
-    drawText("System Settings", x: 24, distanceFromTop: 28, fontSize: 22, weight: .semibold)
-    for (sidebarIndex, sidebarItem) in ["Wi-Fi", "Bluetooth", "General", "Appearance", "Notifications", "Privacy & Security"].enumerated() {
-        let distanceFromTop = 100 + CGFloat(sidebarIndex) * 46
-        if sidebarItem == selectedPane {
-            NSColor(calibratedRed: 0.78, green: 0.85, blue: 0.98, alpha: 1).setFill()
-            NSBezierPath(roundedRect: appKitRect(x: 16, distanceFromTop: distanceFromTop - 8, width: 248, height: 40), xRadius: 8, yRadius: 8).fill()
-        }
-        drawText(sidebarItem, x: 32, distanceFromTop: distanceFromTop, fontSize: 18, elementKey: "sidebar:\(sidebarItem)")
-    }
-
-    drawText(selectedPane, x: 320, distanceFromTop: 28, fontSize: 26, weight: .bold)
-    for (rowIndex, rowTitle) in paneRows.enumerated() {
-        let distanceFromTop = 110 + CGFloat(rowIndex) * 54
-        drawText(rowTitle, x: 320, distanceFromTop: distanceFromTop, fontSize: 18, elementKey: "row:\(rowTitle)")
-
-        if rowTitle == switchRow {
-            let switchRect = CGRect(x: 1180, y: distanceFromTop, width: 48, height: 26)
-            NSColor.systemGreen.setFill()
-            NSBezierPath(roundedRect: appKitRect(x: switchRect.minX, distanceFromTop: switchRect.minY, width: switchRect.width, height: switchRect.height), xRadius: 13, yRadius: 13).fill()
-            NSColor.white.setFill()
-            NSBezierPath(ovalIn: appKitRect(x: switchRect.maxX - 24, distanceFromTop: switchRect.minY + 2, width: 22, height: 22)).fill()
-            elementRects["switch:\(rowTitle)"] = switchRect
-        }
-    }
-
-    NSGraphicsContext.restoreGraphicsState()
-
-    guard let image = bitmap.cgImage,
-          let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else {
-        return nil
-    }
-    return FakeScreen(jpegData: jpegData, image: image, size: CGSize(width: pixelWidth, height: pixelHeight), elementRects: elementRects)
-}
-
 /// A point on the element's row, not only on its letters or knob, counts as a hit.
 func hitArea(of elementRect: CGRect) -> CGRect {
     elementRect.insetBy(dx: -16, dy: -12)
@@ -391,11 +340,14 @@ func hitArea(of elementRect: CGRect) -> CGRect {
 
 func describe(_ point: CGPoint, against targetRect: CGRect) -> String {
     let distanceFromCentre = Int(hypot(point.x - targetRect.midX, point.y - targetRect.midY))
-    return "(\(Int(point.x)), \(Int(point.y))), \(distanceFromCentre)px from centre"
+    return "(\(Int(point.x)), \(Int(point.y))), \(distanceFromCentre)pt from centre"
 }
 
-func fullScreenImage(of fakeScreen: FakeScreen) -> GeminiImage {
-    GeminiImage(jpegData: fakeScreen.jpegData, label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true))
+func fullScreenImage(of screen: SyntheticScreen) -> GeminiImage {
+    GeminiImage(
+        jpegData: screen.screenshotJPEG(longestSide: 1280) ?? Data(),
+        label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true)
+    )
 }
 
 if CommandLine.arguments.contains("--live") {
@@ -404,7 +356,7 @@ if CommandLine.arguments.contains("--live") {
     if apiKey.isEmpty {
         print("  FAIL  no key: set GEMINI_API_KEY or save a key in Tiko's panel")
         failedCheckCount += 1
-    } else if let generalScreen = renderFakeSettingsScreen(selectedPane: "General", paneRows: ["About", "Software Update", "Storage", "Login Items"]) {
+    } else if let generalScreen = SyntheticScreens.systemSettings(name: "general", selectedPane: "General", paneRows: ["About", "Software Update", "Storage", "Login Items"]) {
         do {
             let availableModelNames = try await GeminiClient(apiKey: apiKey, modelNames: []).fetchAvailableModelNames()
             let preferredModelNames = GeminiModelPicker.preferredModelNames(from: availableModelNames)
@@ -412,7 +364,7 @@ if CommandLine.arguments.contains("--live") {
             check(!preferredModelNames.isEmpty, "the key can reach at least one suitable model")
 
             let geminiClient = GeminiClient(apiKey: apiKey, modelNames: preferredModelNames)
-            let generalScreenBounds = CGRect(origin: .zero, size: generalScreen.size)
+            let generalScreenBounds = CGRect(origin: .zero, size: generalScreen.pointSize)
 
             // Pointing: one-action questions, first guess vs zoom check.
             let pointingQuestions: [(question: String, expectedElementKey: String)] = [
@@ -446,10 +398,9 @@ if CommandLine.arguments.contains("--live") {
                 pointedAnswerCount += 1
 
                 let firstGuess = ScreenCoordinates.point(fromNormalized: normalizedPoint, in: generalScreenBounds)
-                let regionRect = CloseUpRegion.captureRect(centeredOn: firstGuess, displaySize: generalScreen.size, regionSize: 400)
+                let regionRect = CloseUpRegion.captureRect(centeredOn: firstGuess, displaySize: generalScreen.pointSize, regionSize: 400)
                 var zoomCheckedPoint: CGPoint?
-                if let regionImage = generalScreen.image.cropping(to: regionRect),
-                   let regionJPEG = NSBitmapImageRep(cgImage: regionImage).representation(using: .jpeg, properties: [.compressionFactor: 0.85]) {
+                if let regionJPEG = generalScreen.regionJPEG(rectInPoints: regionRect) {
                     zoomCheckedPoint = await PointRefiner.refinePoint(
                         elementLabel: parsedReply.elementLabel ?? "the element",
                         userQuestion: pointingQuestion.question,
@@ -498,7 +449,7 @@ if CommandLine.arguments.contains("--live") {
             check(!firstStep.displayText.isEmpty, "the tour's first step comes back")
 
             if firstStepTourTag.hasMoreSteps,
-               let bluetoothScreen = renderFakeSettingsScreen(selectedPane: "Bluetooth", paneRows: ["Bluetooth", "My Devices", "Nearby Devices"], switchRow: "Bluetooth") {
+               let bluetoothScreen = SyntheticScreens.systemSettings(name: "bluetooth", selectedPane: "Bluetooth", paneRows: ["Bluetooth", "My Devices", "Nearby Devices"], switchRow: "Bluetooth") {
                 let tourAfterFirstStep = GuidedTour(goal: tourGoal, shownSteps: [firstStep.displayText])
                 let secondStepReply = try await geminiClient.generateReply(
                     systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: true),
@@ -508,7 +459,7 @@ if CommandLine.arguments.contains("--live") {
                 )
                 let secondStepTourTag = TourTag.strip(secondStepReply.text)
                 let secondStep = PointTag.parse(secondStepTourTag.text)
-                let bluetoothScreenBounds = CGRect(origin: .zero, size: bluetoothScreen.size)
+                let bluetoothScreenBounds = CGRect(origin: .zero, size: bluetoothScreen.pointSize)
                 let secondStepHit = secondStep.normalizedPoint.map { normalizedPoint in
                     bluetoothScreen.elementRects["switch:Bluetooth"].map { hitArea(of: $0).contains(ScreenCoordinates.point(fromNormalized: normalizedPoint, in: bluetoothScreenBounds)) } ?? false
                 } ?? false
