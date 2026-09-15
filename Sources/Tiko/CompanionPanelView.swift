@@ -1,9 +1,12 @@
 import AppKit
 import SwiftUI
+import TikoCore
 
-/// The panel that drops down from the menu bar icon.
+/// The panel that drops down from the menu bar icon: what Tiko needs to work,
+/// and what it last said. Everything else lives in the Settings window.
 struct CompanionPanelView: View {
     @ObservedObject var companionManager: CompanionManager
+    @ObservedObject var preferences: TikoPreferences
 
     @State private var enteredGeminiAPIKey = ""
     @State private var isReplacingGeminiKey = false
@@ -33,27 +36,7 @@ struct CompanionPanelView: View {
             Divider()
 
             if let activeTour = companionManager.activeTour {
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Guided tour · step \(activeTour.shownSteps.count) shown")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(tikoAccentColor)
-                        Text(activeTour.goal)
-                            .font(.system(size: 12))
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text("Tap ⌃⌥ or say \"next\" for the next step")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 4)
-                    Button("End tour") {
-                        companionManager.endTour()
-                    }
-                    .controlSize(.small)
-                }
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tikoAccentColor.opacity(0.1)))
+                tourRow(activeTour)
             }
 
             pushToTalkHint
@@ -103,25 +86,11 @@ struct CompanionPanelView: View {
             .controlSize(.small)
 
             Toggle(isOn: $companionManager.isSpeakingRepliesEnabled) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Speak replies")
-                        .font(.system(size: 12))
-                    if let voice = companionManager.buddyVoice.voice {
-                        Text("Voice: \(voice.name) (\(voice.language))")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text("Speak replies")
+                    .font(.system(size: 12))
             }
             .toggleStyle(.switch)
             .controlSize(.small)
-
-            if companionManager.isSpeakingRepliesEnabled && !companionManager.buddyVoice.isUsingHighQualityVoice {
-                Text("For a more natural voice, download an English (India) voice for free: System Settings → Accessibility → Spoken Content → System voice → Manage Voices.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
 
             Divider()
 
@@ -158,6 +127,30 @@ struct CompanionPanelView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    private func tourRow(_ activeTour: GuidedTour) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Guided tour · step \(activeTour.shownSteps.count) shown")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(tikoAccentColor)
+                Text(activeTour.goal)
+                    .font(.system(size: 12))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Tap \(preferences.pushToTalkShortcut.symbols) or say \"next\" for the next step")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Button("End tour") {
+                companionManager.endTour()
+            }
+            .controlSize(.small)
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tikoAccentColor.opacity(0.1)))
     }
 
     @ViewBuilder
@@ -236,14 +229,12 @@ struct CompanionPanelView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text("Hold")
-                KeyCap(symbol: "⌃", name: "control")
-                Text("+")
-                KeyCap(symbol: "⌥", name: "option")
+                KeyCap(text: preferences.pushToTalkShortcut.displayName)
                 Text("and ask")
             }
             HStack(spacing: 6) {
                 Text("Press")
-                KeyCap(symbol: "⎋", name: "esc")
+                KeyCap(text: "⎋ esc")
                 Text("to stop Tiko")
             }
         }
@@ -302,6 +293,11 @@ struct CompanionPanelView: View {
 
             Spacer()
 
+            Button("Settings…") {
+                NotificationCenter.default.post(name: .tikoOpenSettings, object: nil)
+            }
+            .keyboardShortcut(",")
+
             Button("Quit Tiko") {
                 NSApp.terminate(nil)
             }
@@ -310,13 +306,12 @@ struct CompanionPanelView: View {
     }
 }
 
-/// A small keyboard key, so the shortcut reads like the keys on the keyboard.
+/// A small keyboard key, so shortcuts read like the keys on the keyboard.
 private struct KeyCap: View {
-    let symbol: String
-    let name: String
+    let text: String
 
     var body: some View {
-        Text("\(symbol) \(name)")
+        Text(text)
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.primary)
             .padding(.horizontal, 6)

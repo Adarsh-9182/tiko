@@ -1,7 +1,7 @@
 import Foundation
 
-/// Tiko's saved settings. Stored as a small JSON file in Application Support
-/// that only the current user can read, because it holds an API key.
+/// Tiko's saved Gemini settings. Stored as a small JSON file in Application
+/// Support that only the current user can read, because it holds an API key.
 public struct TikoSettings: Codable, Equatable, Sendable {
     public var geminiAPIKey: String
     /// Picked from the models the key can reach, best first. Refreshed whenever the key is saved.
@@ -34,9 +34,7 @@ public struct TikoSettings: Codable, Equatable, Sendable {
     }
 
     public static var defaultFileURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Tiko", isDirectory: true)
-            .appendingPathComponent("settings.json")
+        PrivateFile.tikoFolderURL.appendingPathComponent("settings.json")
     }
 
     public static func load(from fileURL: URL = TikoSettings.defaultFileURL) -> TikoSettings {
@@ -48,17 +46,8 @@ public struct TikoSettings: Codable, Equatable, Sendable {
     }
 
     public func save(to fileURL: URL = TikoSettings.defaultFileURL) throws {
-        // The folder is private too, so the file is never readable by others,
-        // even in the instant between writing it and tightening its permissions.
-        try FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o700]
-        )
-
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(self).write(to: fileURL, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+        try PrivateFile.write(try encoder.encode(self), to: fileURL)
     }
 }

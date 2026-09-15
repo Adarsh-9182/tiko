@@ -28,6 +28,9 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
 4. For tasks that take several clicks, Tiko shows one step at a time. Do the step,
    then tap **⌃ Control + ⌥ Option** (or say "next" / "aage" / "ho gaya") and it
    looks at the screen again for the next one.
+5. **Settings…** in the panel changes the shortcut (including a one-key Right ⌥),
+   the language you speak, the voice and its speed, and shows your history, which
+   is saved only on this Mac.
 
 ## Check
 

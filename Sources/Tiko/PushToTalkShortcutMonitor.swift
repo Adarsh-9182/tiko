@@ -1,20 +1,20 @@
 import CoreGraphics
 import Foundation
+import TikoCore
 
 enum PushToTalkShortcutTransition {
-    /// ⌃ Control + ⌥ Option just became held.
+    /// The push-to-talk shortcut just became held.
     case pressed
     /// The user let go — they finished talking.
     case released
-    /// A third key was pressed while holding the shortcut, so this was an
+    /// Another key was pressed while holding the shortcut, so this was an
     /// ordinary keyboard shortcut rather than the user talking to Tiko.
     case cancelled
     /// Esc on its own: the user wants Tiko to stop.
     case escapePressed
 }
 
-/// Watches the keyboard, in any app, for ⌃ Control + ⌥ Option being held
-/// together and for Esc.
+/// Watches the keyboard, in any app, for the push-to-talk shortcut and for Esc.
 ///
 /// Uses a listen-only CGEvent tap: it sees keyboard events system-wide (which
 /// needs the Accessibility permission) but can never block or change them, so
@@ -22,6 +22,15 @@ enum PushToTalkShortcutTransition {
 final class PushToTalkShortcutMonitor {
     /// Called on the main thread, because the tap is attached to the main run loop.
     var onTransition: ((PushToTalkShortcutTransition) -> Void)?
+
+    /// Which keys count as push-to-talk. Changing it lets go of any hold in progress.
+    var shortcut: PushToTalkShortcut = .controlOption {
+        didSet {
+            guard shortcut != oldValue, isShortcutHeld else { return }
+            isShortcutHeld = false
+            onTransition?(.cancelled)
+        }
+    }
 
     private(set) var isShortcutHeld = false
     private var eventTap: CFMachPort?
@@ -99,7 +108,7 @@ final class PushToTalkShortcutMonitor {
             }
 
         case .flagsChanged:
-            let isShortcutHeldNow = Self.isExactlyControlAndOption(event.flags)
+            let isShortcutHeldNow = shortcut.isHeld(modifierFlagsRawValue: event.flags.rawValue)
             if isShortcutHeldNow && !isShortcutHeld {
                 isShortcutHeld = true
                 onTransition?(.pressed)
@@ -110,8 +119,9 @@ final class PushToTalkShortcutMonitor {
 
         case .keyDown:
             if isShortcutHeld {
-                // ⌃⌥ plus another key is an ordinary shortcut (switching Spaces, for
-                // example), not the user talking to Tiko.
+                // The shortcut plus another key is an ordinary keyboard shortcut
+                // (⌃⌥→ to switch Spaces, or ⌥ + a letter to type an accent), not the
+                // user talking to Tiko.
                 isShortcutHeld = false
                 onTransition?(.cancelled)
             } else if event.getIntegerValueField(.keyboardEventKeycode) == Self.escapeKeyCode {
@@ -121,13 +131,5 @@ final class PushToTalkShortcutMonitor {
         default:
             break
         }
-    }
-
-    /// Command or Shift on top turns ⌃⌥ into a different shortcut, so those don't count.
-    private static func isExactlyControlAndOption(_ modifierFlags: CGEventFlags) -> Bool {
-        modifierFlags.contains(.maskControl)
-            && modifierFlags.contains(.maskAlternate)
-            && !modifierFlags.contains(.maskCommand)
-            && !modifierFlags.contains(.maskShift)
     }
 }

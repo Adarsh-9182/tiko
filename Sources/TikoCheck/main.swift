@@ -233,6 +233,54 @@ if let chosenVoice = SpeechVoicePicker.bestVoice() {
     check(false, "the Mac has a speech voice installed")
 }
 
+// MARK: - Push-to-talk shortcuts
+
+print("Push-to-talk shortcuts")
+// Raw CGEventFlags bits: shift 0x20000, control 0x40000, option 0x80000,
+// command 0x100000; 0x20 and 0x40 mark the left and right Option keys.
+check(PushToTalkShortcut.controlOption.isHeld(modifierFlagsRawValue: 0x40000 | 0x80000 | 0x20), "⌃⌥ is recognised")
+check(!PushToTalkShortcut.controlOption.isHeld(modifierFlagsRawValue: 0x40000 | 0x80000 | 0x100000), "⌃⌥ with ⌘ added is a different shortcut")
+check(!PushToTalkShortcut.controlOption.isHeld(modifierFlagsRawValue: 0x40000), "⌃ alone isn't ⌃⌥")
+check(PushToTalkShortcut.optionCommand.isHeld(modifierFlagsRawValue: 0x80000 | 0x100000 | 0x20), "⌥⌘ is recognised")
+check(!PushToTalkShortcut.optionCommand.isHeld(modifierFlagsRawValue: 0x80000 | 0x100000 | 0x20000), "⌥⌘ with ⇧ added is a different shortcut")
+check(PushToTalkShortcut.rightOption.isHeld(modifierFlagsRawValue: 0x80000 | 0x40), "right ⌥ alone is recognised")
+check(!PushToTalkShortcut.rightOption.isHeld(modifierFlagsRawValue: 0x80000 | 0x20), "left ⌥ doesn't count as right ⌥")
+check(!PushToTalkShortcut.rightOption.isHeld(modifierFlagsRawValue: 0x80000 | 0x40 | 0x20), "both ⌥ keys together don't count")
+
+// MARK: - Languages and voices
+
+print("Languages and voices")
+check(SpeechLanguage.allCases.map(\.localeIdentifier) == ["en-IN", "en-US", "hi-IN"], "Hinglish first, then US English and Hindi")
+let voiceOptions = SpeechVoicePicker.voiceOptions()
+print("  voices offered on this Mac: \(voiceOptions.map { "\($0.name) (\($0.language), \($0.qualityName))" }.joined(separator: ", "))")
+check(!voiceOptions.isEmpty, "Settings has voices to offer")
+check(voiceOptions.first?.language == "en-IN", "Indian English voices are listed first")
+check(SpeechVoicePicker.voice(withIdentifier: "no.such.voice")?.identifier == SpeechVoicePicker.bestVoice()?.identifier, "a voice that's gone from the Mac falls back to the best installed one")
+
+// MARK: - History
+
+print("History")
+var conversationLog = ConversationLog()
+for questionIndex in 1...(ConversationLog.maximumEntryCount + 5) {
+    conversationLog.append(ConversationLogEntry(question: "sawaal \(questionIndex)", reply: "jawab \(questionIndex)"))
+}
+check(conversationLog.entries.count == ConversationLog.maximumEntryCount, "history keeps at most \(ConversationLog.maximumEntryCount) answers")
+check(conversationLog.entries.first?.question == "sawaal 6", "the oldest answers are the ones dropped")
+
+let temporaryHistoryFolderURL = FileManager.default.temporaryDirectory.appendingPathComponent("tiko-history-check-\(UUID().uuidString)")
+let temporaryHistoryFileURL = temporaryHistoryFolderURL.appendingPathComponent("history.json")
+do {
+    try conversationLog.save(to: temporaryHistoryFileURL)
+    check(ConversationLog.load(from: temporaryHistoryFileURL) == conversationLog, "history survives a save and load")
+    let historyFileAttributes = try FileManager.default.attributesOfItem(atPath: temporaryHistoryFileURL.path)
+    check((historyFileAttributes[.posixPermissions] as? NSNumber)?.intValue == 0o600, "history file is readable only by this user")
+} catch {
+    check(false, "saving history failed: \(error)")
+}
+try? FileManager.default.removeItem(at: temporaryHistoryFolderURL)
+conversationLog.removeAll()
+check(conversationLog.entries.isEmpty, "clearing history removes every answer")
+
 // MARK: - Settings
 
 print("Settings file")

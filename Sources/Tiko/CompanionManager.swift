@@ -39,7 +39,7 @@ struct PointingTarget: Equatable {
 }
 
 /// Tiko's central state: permissions, the cursor buddy, push-to-talk, speech
-/// recognition, Gemini, pointing, speaking replies and guided tours.
+/// recognition, Gemini, pointing, speaking replies, guided tours and history.
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var permissions = PermissionSnapshot()
@@ -59,6 +59,8 @@ final class CompanionManager: ObservableObject {
     /// Where the buddy pointed for the last reply, kept for the panel.
     @Published private(set) var lastPointingTarget: PointingTarget?
     @Published private(set) var geminiKeyStatus: GeminiKeyStatus
+    /// Every question and answer, saved on this Mac for the History tab.
+    @Published private(set) var conversationLog = ConversationLog.load()
 
     /// Whether the buddy follows the cursor. Saved so the choice survives restarts.
     @Published var isBuddyVisible = UserDefaults.standard.object(forKey: CompanionManager.buddyVisibleDefaultsKey) as? Bool ?? true {
@@ -78,11 +80,13 @@ final class CompanionManager: ObservableObject {
         }
     }
 
+    /// The choices made in the Settings window.
+    let preferences = TikoPreferences()
     /// Shared with the overlay so the waveform can follow the microphone level.
     let microphoneCapture = MicrophoneCapture()
     /// Shared with the overlay so it can show the words as they're recognised.
     let speechTranscriber = SpeechTranscriber()
-    /// Shared with the panel so it can show which voice is speaking.
+    /// Shared with Settings so it can show which voice is speaking.
     let buddyVoice = BuddyVoice()
 
     private var settings: TikoSettings
@@ -91,6 +95,7 @@ final class CompanionManager: ObservableObject {
 
     private let overlayWindowManager = OverlayWindowManager()
     private let pushToTalkShortcutMonitor = PushToTalkShortcutMonitor()
+    private var preferenceSubscriptions: Set<AnyCancellable> = []
     private var permissionPollingTask: Task<Void, Never>?
     private var buddyMessageDismissTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
@@ -100,7 +105,6 @@ final class CompanionManager: ObservableObject {
     private static let buddyVisibleDefaultsKey = "isBuddyVisible"
     private static let speakRepliesDefaultsKey = "isSpeakingRepliesEnabled"
     private static let hasShownWelcomeBubbleDefaultsKey = "hasShownWelcomeBubble"
-    private static let speechLocaleIdentifier = "en-IN"
     private static let maximumRememberedExchanges = 10
     /// The close-up used to double-check a point, in points.
     private static let pointRefinementRegionSize: CGFloat = 400
@@ -112,6 +116,7 @@ final class CompanionManager: ObservableObject {
     private static let tourStepPatience: Duration = .seconds(60)
     /// What a "next step" request is remembered as in the conversation history.
     private static let nextStepHistoryText = "(next step)"
+    private static let voicePreviewText = "namaste! main tiko hoon, aapke cursor ke paas rehta hoon."
 
     init() {
         let savedSettings = TikoSettings.load()
@@ -128,6 +133,23 @@ final class CompanionManager: ObservableObject {
                 self?.handlePushToTalkTransition(shortcutTransition)
             }
         }
+
+        // Settings take effect the moment they change, with no restart.
+        preferences.$pushToTalkShortcut
+            .sink { [weak self] pushToTalkShortcut in
+                self?.pushToTalkShortcutMonitor.shortcut = pushToTalkShortcut
+            }
+            .store(in: &preferenceSubscriptions)
+        preferences.$voiceIdentifier
+            .sink { [weak self] voiceIdentifier in
+                self?.buddyVoice.useVoice(identifier: voiceIdentifier)
+            }
+            .store(in: &preferenceSubscriptions)
+        preferences.$speakingSpeed
+            .sink { [weak self] speakingSpeed in
+                self?.buddyVoice.speechRate = speakingSpeed.speechRate
+            }
+            .store(in: &preferenceSubscriptions)
 
         // macOS doesn't tell an app when the user flips a switch in System
         // Settings, so poll. It's cheap, and the panel updates within a moment.
@@ -238,6 +260,20 @@ final class CompanionManager: ObservableObject {
         clearBuddyMessage()
     }
 
+    // MARK: - Settings actions
+
+    /// Reads a short sample aloud with the chosen voice and speed.
+    func previewVoice() {
+        Task {
+            await buddyVoice.speak(Self.voicePreviewText)
+        }
+    }
+
+    func clearHistory() {
+        conversationLog.removeAll()
+        try? conversationLog.save()
+    }
+
     // MARK: - Keyboard
 
     private func handlePushToTalkTransition(_ shortcutTransition: PushToTalkShortcutTransition) {
@@ -297,7 +333,7 @@ final class CompanionManager: ObservableObject {
         }
 
         do {
-            let speechAudioSink = try speechTranscriber.startSession(localeIdentifier: Self.speechLocaleIdentifier)
+            let speechAudioSink = try speechTranscriber.startSession(localeIdentifier: preferences.speechLanguage.localeIdentifier)
             try microphoneCapture.start(onAudioBuffer: { audioBuffer in
                 speechAudioSink.append(audioBuffer)
             })
@@ -401,6 +437,7 @@ final class CompanionManager: ObservableObject {
                     userText: continuingTour == nil ? question : Self.nextStepHistoryText,
                     tikoReply: displayText
                 ))
+                self.recordInHistory(question: continuingTour == nil ? question : "\(tourGoal) · next step", reply: displayText)
                 self.lastReply = GeminiReply(text: displayText, modelName: reply.modelName)
                 self.lastPointingTarget = nil
                 self.voiceState = .idle
@@ -412,7 +449,7 @@ final class CompanionManager: ObservableObject {
 
                 // The step hint is shown under the reply but never spoken.
                 let tourHint = hasMoreSteps
-                    ? "step \(stepNumber) · agle step ke liye ⌃⌥ tap karo"
+                    ? "step \(stepNumber) · agle step ke liye \(self.preferences.pushToTalkShortcut.symbols) tap karo"
                     : "step \(stepNumber) · bas, ho gaya"
                 let bubbleText = isTourStep ? "\(displayText)\n\(tourHint)" : displayText
 
@@ -558,6 +595,12 @@ final class CompanionManager: ObservableObject {
         if conversationHistory.count > Self.maximumRememberedExchanges {
             conversationHistory.removeFirst(conversationHistory.count - Self.maximumRememberedExchanges)
         }
+    }
+
+    private func recordInHistory(question: String, reply: String) {
+        conversationLog.append(ConversationLogEntry(question: question, reply: reply))
+        // History is a convenience; failing to save it shouldn't interrupt the answer.
+        try? conversationLog.save()
     }
 
     /// Long enough to read the reply at a relaxed pace — about two and a half

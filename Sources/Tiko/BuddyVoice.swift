@@ -6,14 +6,16 @@ import TikoCore
 @MainActor
 final class BuddyVoice: NSObject, ObservableObject {
     @Published private(set) var isSpeaking = false
+    @Published private(set) var voice: AVSpeechSynthesisVoice? = SpeechVoicePicker.bestVoice()
 
-    let voice: AVSpeechSynthesisVoice? = SpeechVoicePicker.bestVoice()
+    /// How fast replies are read; set from the Settings window.
+    var speechRate: Float = AVSpeechUtteranceDefaultSpeechRate
 
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var currentUtterance: AVSpeechUtterance?
     private var speechFinishedContinuation: CheckedContinuation<Void, Never>?
 
-    /// Basic-quality voices sound robotic; the panel suggests a free download when that's all there is.
+    /// Basic-quality voices sound robotic; Settings suggests a free download when that's what's in use.
     var isUsingHighQualityVoice: Bool {
         guard let voice else { return false }
         return voice.quality != .default
@@ -24,6 +26,11 @@ final class BuddyVoice: NSObject, ObservableObject {
         speechSynthesizer.delegate = self
     }
 
+    /// - Parameter voiceIdentifier: nil picks the best installed voice.
+    func useVoice(identifier voiceIdentifier: String?) {
+        voice = SpeechVoicePicker.voice(withIdentifier: voiceIdentifier)
+    }
+
     /// Speaks the text and returns once it has finished or been stopped.
     func speak(_ text: String) async {
         stop()
@@ -32,7 +39,7 @@ final class BuddyVoice: NSObject, ObservableObject {
 
         let utterance = AVSpeechUtterance(string: spokenText)
         utterance.voice = voice
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        utterance.rate = speechRate
         currentUtterance = utterance
         isSpeaking = true
 
