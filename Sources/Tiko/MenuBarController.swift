@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    /// Posted when the user starts talking to Tiko, so the panel gets out of the way.
+    static let tikoDismissPanel = Notification.Name("tikoDismissPanel")
+}
+
 /// Owns the menu bar icon and the panel that drops down from it.
 @MainActor
 final class MenuBarController: NSObject {
@@ -13,6 +18,7 @@ final class MenuBarController: NSObject {
         super.init()
         configureMenuBarButton()
         configurePanelPopover()
+        NotificationCenter.default.addObserver(self, selector: #selector(closePanel), name: .tikoDismissPanel, object: nil)
     }
 
     private func configureMenuBarButton() {
@@ -49,5 +55,10 @@ final class MenuBarController: NSObject {
             NSApp.activate()
             panelPopover.show(relativeTo: menuBarButton.bounds, of: menuBarButton, preferredEdge: .minY)
         }
+    }
+
+    @objc private func closePanel() {
+        guard panelPopover.isShown else { return }
+        panelPopover.performClose(nil)
     }
 }

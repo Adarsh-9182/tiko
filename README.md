@@ -3,7 +3,8 @@
 A buddy that lives next to your cursor on macOS: hold a shortcut, ask out loud,
 and it sees your screen, answers by voice, and points at the thing you need.
 Inspired by [Clicky](https://github.com/farzaa/clicky), rebuilt on a free stack
-(Gemini free tier, Apple on-device speech, macOS system voices).
+(Gemini free tier, Apple on-device speech, macOS system voices) and aiming to do
+the job better.
 
 ## Build
 
@@ -16,15 +17,11 @@ open build/Tiko.app
 
 The app is ad-hoc signed, so macOS asks for its permissions again after every rebuild.
 
+## Use
+
+Hold **⌃ Control + ⌥ Option** and talk. Open the menu bar icon for permissions and settings.
+
 ## Roadmap
 
-1. Menu bar app skeleton ← **done**
-2. Permissions (accessibility, screen recording, microphone, speech) ← **done**
-3. Cursor buddy overlay ← **done**
-4. Push-to-talk shortcut (⌃ control + ⌥ option)
-5. Voice → text (Apple Speech, en-IN, on-device)
-6. Screenshot + question → Gemini
-7. Pointing at on-screen elements
-8. Speaking the reply
-9. Tests, including a live pointing-accuracy check
-10. Distribution (API proxy, signing)
+See [ROADMAP.md](ROADMAP.md): where Clicky falls short, how Tiko does better,
+and the phase-by-phase plan.

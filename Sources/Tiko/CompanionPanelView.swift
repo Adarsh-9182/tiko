@@ -23,6 +23,8 @@ struct CompanionPanelView: View {
 
             Divider()
 
+            pushToTalkHint
+
             Toggle(isOn: $companionManager.isBuddyVisible) {
                 Text("Show Tiko next to my cursor")
                     .font(.system(size: 12))
@@ -58,6 +60,18 @@ struct CompanionPanelView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    private var pushToTalkHint: some View {
+        HStack(spacing: 6) {
+            Text("Hold")
+            KeyCap(symbol: "⌃", name: "control")
+            Text("+")
+            KeyCap(symbol: "⌥", name: "option")
+            Text("and talk")
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(.secondary)
     }
 
     private var permissionsSection: some View {
@@ -116,6 +130,28 @@ struct CompanionPanelView: View {
             }
             .keyboardShortcut("q")
         }
+    }
+}
+
+/// A small keyboard key, so the shortcut reads like the keys on the keyboard.
+private struct KeyCap: View {
+    let symbol: String
+    let name: String
+
+    var body: some View {
+        Text("\(symbol) \(name)")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
+            )
     }
 }
 

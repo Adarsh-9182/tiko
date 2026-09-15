@@ -33,6 +33,7 @@ final class OverlayWindowManager {
     private var overlayWindows: [BuddyOverlayWindow] = []
     private let cursorTracker = CursorTracker()
     private var screenChangeObserver: NSObjectProtocol?
+    private weak var companionManager: CompanionManager?
 
     var isShowingOverlay: Bool { !overlayWindows.isEmpty }
 
@@ -45,13 +46,14 @@ final class OverlayWindowManager {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.isShowingOverlay else { return }
-                self.showOverlay(showsWelcomeBubble: false)
+                guard let self, self.isShowingOverlay, let companionManager = self.companionManager else { return }
+                self.showOverlay(companionManager: companionManager, showsWelcomeBubble: false)
             }
         }
     }
 
-    func showOverlay(showsWelcomeBubble: Bool) {
+    func showOverlay(companionManager: CompanionManager, showsWelcomeBubble: Bool) {
+        self.companionManager = companionManager
         removeOverlayWindows()
         cursorTracker.start()
 
@@ -60,6 +62,8 @@ final class OverlayWindowManager {
             let overlayView = BuddyOverlayView(
                 screenFrame: screen.frame,
                 cursorTracker: cursorTracker,
+                companionManager: companionManager,
+                microphoneCapture: companionManager.microphoneCapture,
                 showsWelcomeBubble: showsWelcomeBubble
             )
             overlayWindow.contentView = NSHostingView(rootView: overlayView)
@@ -88,6 +92,8 @@ final class OverlayWindowManager {
 struct BuddyOverlayView: View {
     let screenFrame: CGRect
     @ObservedObject var cursorTracker: CursorTracker
+    @ObservedObject var companionManager: CompanionManager
+    @ObservedObject var microphoneCapture: MicrophoneCapture
     let showsWelcomeBubble: Bool
 
     @State private var buddyOpacity = 0.0
@@ -114,6 +120,18 @@ struct BuddyOverlayView: View {
         )
     }
 
+    /// A message from Tiko wins over the welcome bubble.
+    private var visibleBubbleText: String? {
+        if let buddyMessage = companionManager.buddyMessage {
+            return buddyMessage
+        }
+        return welcomeBubbleText.isEmpty ? nil : welcomeBubbleText
+    }
+
+    private var visibleBubbleOpacity: Double {
+        companionManager.buddyMessage != nil ? 1 : welcomeBubbleOpacity
+    }
+
     var body: some View {
         ZStack {
             BuddyTriangleShape()
@@ -122,25 +140,34 @@ struct BuddyOverlayView: View {
                 .rotationEffect(.degrees(-35))
                 .shadow(color: tikoAccentColor, radius: 8)
                 .position(buddyPosition)
-                .opacity(isCursorOnThisScreen ? buddyOpacity : 0)
+                .opacity(isCursorOnThisScreen && companionManager.voiceState == .idle ? buddyOpacity : 0)
 
-            if isCursorOnThisScreen && !welcomeBubbleText.isEmpty {
+            // Inserted only while listening, so its animation timeline isn't
+            // ticking in the background the rest of the time.
+            if isCursorOnThisScreen && companionManager.voiceState == .listening {
+                BuddyWaveformView(audioLevel: microphoneCapture.audioLevel)
+                    .position(buddyPosition)
+                    .transition(.opacity)
+            }
+
+            if isCursorOnThisScreen, let visibleBubbleText {
                 // A 1×1 anchor at the buddy lets the bubble size itself to its
                 // text and hang off the buddy's side, instead of being centred on it.
                 Color.clear
                     .frame(width: 1, height: 1)
                     .overlay(alignment: .topLeading) {
-                        BuddySpeechBubble(text: welcomeBubbleText)
+                        BuddySpeechBubble(text: visibleBubbleText)
                             .offset(x: 10, y: 8)
                     }
                     .position(buddyPosition)
-                    .opacity(welcomeBubbleOpacity)
+                    .opacity(visibleBubbleOpacity)
             }
         }
         .frame(width: screenFrame.width, height: screenFrame.height)
         // A quick, slightly bouncy spring makes the buddy trail the cursor
         // like something alive instead of being glued to it.
         .animation(.spring(response: 0.2, dampingFraction: 0.6), value: buddyPosition)
+        .animation(.easeInOut(duration: 0.15), value: companionManager.voiceState)
         .onAppear {
             withAnimation(.easeIn(duration: 0.4)) {
                 buddyOpacity = 1
@@ -169,6 +196,38 @@ struct BuddyOverlayView: View {
             try? await Task.sleep(for: .milliseconds(500))
             welcomeBubbleText = ""
         }
+    }
+}
+
+/// Five small bars that bounce with the user's voice while push-to-talk is held.
+struct BuddyWaveformView: View {
+    let audioLevel: CGFloat
+
+    /// Taller in the middle, so the bars read as a waveform rather than a row of blocks.
+    private static let barHeightProfile: [CGFloat] = [0.4, 0.7, 1.0, 0.7, 0.4]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            HStack(spacing: 2) {
+                ForEach(Self.barHeightProfile.indices, id: \.self) { barIndex in
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(tikoAccentColor)
+                        .frame(width: 2.5, height: barHeight(barIndex: barIndex, at: timeline.date))
+                }
+            }
+            .shadow(color: tikoAccentColor.opacity(0.6), radius: 6)
+            .animation(.linear(duration: 0.08), value: audioLevel)
+        }
+    }
+
+    private func barHeight(barIndex: Int, at date: Date) -> CGFloat {
+        // Speech loudness is small (roughly 0.01–0.2), so boost it and ease the
+        // curve so that quiet talking still moves the bars visibly.
+        let boostedAudioLevel = pow(min(max(audioLevel - 0.005, 0) * 6, 1), 0.7)
+        // A gentle ripple keeps the bars alive in the pauses between words.
+        let ripplePhase = date.timeIntervalSinceReferenceDate * 3.6 + Double(barIndex) * 0.35
+        let idleRipple = (sin(ripplePhase) + 1) / 2 * 1.5
+        return 3 + boostedAudioLevel * 12 * Self.barHeightProfile[barIndex] + idleRipple
     }
 }
 
