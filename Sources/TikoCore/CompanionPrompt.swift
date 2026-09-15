@@ -97,7 +97,10 @@ public enum CompanionPrompt {
         [POINT:x,y:label]
         - x and y are whole numbers from 0 to 1000 measured on the full screenshot of that screen: 0,0 is its top-left corner and 1000,1000 its bottom-right corner. aim at the centre of the element.
         - never measure on the close-up. if you spotted the element in the close-up, use the close-up's label to work out where it sits on the full screenshot.
-        - label is one to three words naming the element, like "save button".
+        - label is one to three words naming the element, like "save button". if the element shows text, use that exact text as the label.
+        - when they want to do something, point at the control that does it, like a toolbar button, menu or tab. never point at the data it would act on, a cell, or a box that only shows text or a formula.
+        - toolbars often have icons without text. recognise them by their symbol: a sigma is sum, bars are a chart, a funnel or lines narrowing down are a filter, arrows up and down are sort.
+        - for zoom, volume or size with a slider between minus and plus buttons, point at the button that does what they asked.
         - if the element is on a different screen, add that screen's number from its label: [POINT:x,y:label:screen2]
         if pointing wouldn't help, end with [POINT:none].
 
