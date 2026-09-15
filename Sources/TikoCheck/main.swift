@@ -167,6 +167,15 @@ check(
         == CGRect(x: 0, y: 596, width: 360, height: 360),
     "slides back inside the display at a corner"
 )
+let cursorCloseUpLabel = CompanionPrompt.cursorCloseUpLabel(
+    screenNumber: 1,
+    regionInDisplay: CGRect(x: 540, y: 270, width: 360, height: 360),
+    displaySize: CGSize(width: 1440, height: 900)
+)
+check(
+    cursorCloseUpLabel.contains("x 375 to 625") && cursorCloseUpLabel.contains("y 300 to 700"),
+    "the cursor close-up says which part of the screen it shows, on the 0–1000 grid"
+)
 
 // MARK: - Buddy flight
 

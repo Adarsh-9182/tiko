@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// The instructions that make Gemini behave like Tiko.
@@ -30,7 +31,23 @@ public enum CompanionPrompt {
             : "screen \(screenNumber) of \(screenCount):"
     }
 
-    public static let cursorCloseUpLabel = "close-up of the area around the mouse cursor, in full detail:"
+    /// Says which part of the screen the cursor close-up shows, on the same
+    /// 0–1000 grid used for pointing. Without it the model sometimes gave
+    /// coordinates measured on the close-up, which land in the wrong place on
+    /// the full screen — the benchmark caught this on System Settings.
+    ///
+    /// - Parameter regionInDisplay: Points from the display's top-left corner.
+    public static func cursorCloseUpLabel(screenNumber: Int, regionInDisplay: CGRect, displaySize: CGSize) -> String {
+        let leftEdge = gridValue(of: regionInDisplay.minX, across: displaySize.width)
+        let rightEdge = gridValue(of: regionInDisplay.maxX, across: displaySize.width)
+        let topEdge = gridValue(of: regionInDisplay.minY, across: displaySize.height)
+        let bottomEdge = gridValue(of: regionInDisplay.maxY, across: displaySize.height)
+        return "close-up of the area around the mouse cursor, in full detail. it is a zoomed-in copy of part of screen \(screenNumber): x \(leftEdge) to \(rightEdge), y \(topEdge) to \(bottomEdge) on that screen's 0-1000 grid. use it to read small text, but never give point coordinates measured on this close-up:"
+    }
+
+    private static func gridValue(of position: CGFloat, across length: CGFloat) -> Int {
+        Int((position / max(length, 1) * 1000).rounded())
+    }
 
     // MARK: - Guided tours
 
@@ -66,8 +83,8 @@ public enum CompanionPrompt {
 
     private static let screenInstructions = """
         what you can see:
-        - a screenshot of each of the user's screens, each introduced by a label. the screen labelled "cursor is here" is where they are looking.
-        - a close-up of the area around the mouse cursor. when they say "this", "here", "yeh" or "yahan", they usually mean what's in the close-up.
+        - a close-up of the area around the mouse cursor, and then a full screenshot of each of the user's screens, each introduced by a label. the screen labelled "cursor is here" is where they are looking.
+        - when they say "this", "here", "yeh" or "yahan", they usually mean what's in the close-up.
         - if the question is about something on screen, mention the specific things you see: app names, button labels, menu names, text.
         - if the screen has nothing to do with the question, just answer it.
         """
@@ -78,7 +95,8 @@ public enum CompanionPrompt {
 
         when you point, put exactly one tag after your words:
         [POINT:x,y:label]
-        - x and y are whole numbers from 0 to 1000 measured on the screenshot of that screen, not on the close-up: 0,0 is the top-left corner and 1000,1000 the bottom-right corner. aim at the centre of the element.
+        - x and y are whole numbers from 0 to 1000 measured on the full screenshot of that screen: 0,0 is its top-left corner and 1000,1000 its bottom-right corner. aim at the centre of the element.
+        - never measure on the close-up. if you spotted the element in the close-up, use the close-up's label to work out where it sits on the full screenshot.
         - label is one to three words naming the element, like "save button".
         - if the element is on a different screen, add that screen's number from its label: [POINT:x,y:label:screen2]
         if pointing wouldn't help, end with [POINT:none].

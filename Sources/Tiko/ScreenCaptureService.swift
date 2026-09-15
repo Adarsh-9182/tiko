@@ -17,8 +17,10 @@ struct ScreenContext {
     let screens: [CapturedScreen]
     let cursorCloseUp: GeminiImage?
 
+    /// The close-up goes first, so the full screenshots — which point
+    /// coordinates are measured on — sit right before the question.
     var geminiImages: [GeminiImage] {
-        screens.map(\.image) + (cursorCloseUp.map { [$0] } ?? [])
+        (cursorCloseUp.map { [$0] } ?? []) + screens.map(\.image)
     }
 }
 
@@ -99,7 +101,14 @@ enum ScreenCaptureService {
                 )
                 // A missing close-up shouldn't cost the user their answer.
                 if let closeUpJPEG = try? await captureRegionJPEG(contentFilter: contentFilter, rectInDisplay: closeUpRect) {
-                    cursorCloseUp = GeminiImage(jpegData: closeUpJPEG, label: CompanionPrompt.cursorCloseUpLabel)
+                    cursorCloseUp = GeminiImage(
+                        jpegData: closeUpJPEG,
+                        label: CompanionPrompt.cursorCloseUpLabel(
+                            screenNumber: displayIndex + 1,
+                            regionInDisplay: closeUpRect,
+                            displaySize: displayWithFrame.frame.size
+                        )
+                    )
                 }
             }
         }

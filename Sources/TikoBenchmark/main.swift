@@ -131,9 +131,13 @@ func measure(
         let reply = try await geminiClient.generateReply(
             systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: true),
             history: [],
+            // Same order and labels as the app: the close-up first, the full screenshot right before the question.
             images: [
-                GeminiImage(jpegData: screenshotJPEG, label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true)),
-                GeminiImage(jpegData: cursorCloseUpJPEG, label: CompanionPrompt.cursorCloseUpLabel)
+                GeminiImage(
+                    jpegData: cursorCloseUpJPEG,
+                    label: CompanionPrompt.cursorCloseUpLabel(screenNumber: 1, regionInDisplay: cursorCloseUpRect, displaySize: screen.pointSize)
+                ),
+                GeminiImage(jpegData: screenshotJPEG, label: CompanionPrompt.screenLabel(screenNumber: 1, screenCount: 1, isCursorScreen: true))
             ],
             userText: benchmarkCase.question
         )
