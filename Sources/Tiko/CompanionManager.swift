@@ -5,10 +5,12 @@ enum BuddyVoiceState {
     case idle
     /// Push-to-talk is held and the microphone is recording.
     case listening
+    /// The user let go; waiting for the speech recognizer's final text.
+    case transcribing
 }
 
-/// Tiko's central state: permissions, the cursor buddy and push-to-talk.
-/// Later phases add speech recognition, the AI reply and pointing.
+/// Tiko's central state: permissions, the cursor buddy, push-to-talk and
+/// speech recognition. Later phases add the AI reply and pointing.
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var permissions = PermissionSnapshot()
@@ -19,6 +21,8 @@ final class CompanionManager: ObservableObject {
     @Published private(set) var voiceState: BuddyVoiceState = .idle
     /// A short note the buddy shows next to the cursor, like a missing permission.
     @Published private(set) var buddyMessage: String?
+    /// The last thing the user said, as recognised text.
+    @Published private(set) var lastTranscript: String?
 
     /// Whether the buddy follows the cursor. Saved so the choice survives restarts.
     @Published var isBuddyVisible = UserDefaults.standard.object(forKey: CompanionManager.buddyVisibleDefaultsKey) as? Bool ?? true {
@@ -30,14 +34,18 @@ final class CompanionManager: ObservableObject {
 
     /// Shared with the overlay so the waveform can follow the microphone level.
     let microphoneCapture = MicrophoneCapture()
+    /// Shared with the overlay so it can show the words as they're recognised.
+    let speechTranscriber = SpeechTranscriber()
 
     private let overlayWindowManager = OverlayWindowManager()
     private let pushToTalkShortcutMonitor = PushToTalkShortcutMonitor()
     private var permissionPollingTask: Task<Void, Never>?
     private var buddyMessageDismissTask: Task<Void, Never>?
+    private var transcriptionTask: Task<Void, Never>?
 
     private static let buddyVisibleDefaultsKey = "isBuddyVisible"
     private static let hasShownWelcomeBubbleDefaultsKey = "hasShownWelcomeBubble"
+    private static let speechLocaleIdentifier = "en-IN"
 
     func start() {
         pushToTalkShortcutMonitor.onTransition = { [weak self] shortcutTransition in
@@ -108,21 +116,30 @@ final class CompanionManager: ObservableObject {
     }
 
     private func startListening() {
-        guard voiceState == .idle else { return }
+        guard voiceState != .listening else { return }
+        // A new question replaces one that is still being transcribed.
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
         // Get the panel out of the way so it doesn't cover what the user is asking about.
         NotificationCenter.default.post(name: .tikoDismissPanel, object: nil)
 
-        guard permissions.isMicrophoneGranted else {
-            showBuddyMessage("mic ki permission chahiye, menu bar mein Tiko kholo")
+        guard permissions.isMicrophoneGranted && permissions.isSpeechRecognitionGranted else {
+            voiceState = .idle
+            showBuddyMessage("mic aur speech recognition ki permission chahiye, menu bar mein Tiko kholo")
             return
         }
 
         do {
-            try microphoneCapture.start()
+            let speechAudioSink = try speechTranscriber.startSession(localeIdentifier: Self.speechLocaleIdentifier)
+            try microphoneCapture.start(onAudioBuffer: { audioBuffer in
+                speechAudioSink.append(audioBuffer)
+            })
             clearBuddyMessage()
             voiceState = .listening
             applyBuddyVisibility()
         } catch {
+            speechTranscriber.cancelSession()
+            voiceState = .idle
             showBuddyMessage(error.localizedDescription)
         }
     }
@@ -130,14 +147,29 @@ final class CompanionManager: ObservableObject {
     private func finishListening() {
         guard voiceState == .listening else { return }
         microphoneCapture.stop()
-        voiceState = .idle
-        // Phase 5 turns what was said into text right here.
-        applyBuddyVisibility()
+        voiceState = .transcribing
+
+        transcriptionTask = Task { [weak self] in
+            guard let self else { return }
+            let finalTranscript = await self.speechTranscriber.finishSession()
+            // The user may have pressed the shortcut again while we waited.
+            guard !Task.isCancelled, self.voiceState == .transcribing else { return }
+            self.voiceState = .idle
+
+            guard !finalTranscript.isEmpty else {
+                self.showBuddyMessage("kuch sunai nahi diya, phir se bolo", for: .seconds(2.5))
+                return
+            }
+            self.lastTranscript = finalTranscript
+            // Phase 6 sends this to Gemini. Until then, show what was heard so it can be checked.
+            self.showBuddyMessage("suna: \(finalTranscript)", for: .seconds(5))
+        }
     }
 
     private func cancelListening() {
         guard voiceState == .listening else { return }
         microphoneCapture.stop()
+        speechTranscriber.cancelSession()
         voiceState = .idle
         applyBuddyVisibility()
     }

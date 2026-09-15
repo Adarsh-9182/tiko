@@ -64,6 +64,7 @@ final class OverlayWindowManager {
                 cursorTracker: cursorTracker,
                 companionManager: companionManager,
                 microphoneCapture: companionManager.microphoneCapture,
+                speechTranscriber: companionManager.speechTranscriber,
                 showsWelcomeBubble: showsWelcomeBubble
             )
             overlayWindow.contentView = NSHostingView(rootView: overlayView)
@@ -94,6 +95,7 @@ struct BuddyOverlayView: View {
     @ObservedObject var cursorTracker: CursorTracker
     @ObservedObject var companionManager: CompanionManager
     @ObservedObject var microphoneCapture: MicrophoneCapture
+    @ObservedObject var speechTranscriber: SpeechTranscriber
     let showsWelcomeBubble: Bool
 
     @State private var buddyOpacity = 0.0
@@ -120,8 +122,12 @@ struct BuddyOverlayView: View {
         )
     }
 
-    /// A message from Tiko wins over the welcome bubble.
+    /// While the user talks the bubble shows what Tiko hears; otherwise a
+    /// message from Tiko wins over the welcome bubble.
     private var visibleBubbleText: String? {
+        if companionManager.voiceState == .listening {
+            return speechTranscriber.liveTranscript.isEmpty ? nil : speechTranscriber.liveTranscript
+        }
         if let buddyMessage = companionManager.buddyMessage {
             return buddyMessage
         }
@@ -129,7 +135,8 @@ struct BuddyOverlayView: View {
     }
 
     private var visibleBubbleOpacity: Double {
-        companionManager.buddyMessage != nil ? 1 : welcomeBubbleOpacity
+        let isShowingLiveOrMessage = companionManager.voiceState == .listening || companionManager.buddyMessage != nil
+        return isShowingLiveOrMessage ? 1 : welcomeBubbleOpacity
     }
 
     var body: some View {
@@ -142,10 +149,16 @@ struct BuddyOverlayView: View {
                 .position(buddyPosition)
                 .opacity(isCursorOnThisScreen && companionManager.voiceState == .idle ? buddyOpacity : 0)
 
-            // Inserted only while listening, so its animation timeline isn't
-            // ticking in the background the rest of the time.
+            // The waveform and spinner are inserted only in their state, so their
+            // animations aren't running in the background the rest of the time.
             if isCursorOnThisScreen && companionManager.voiceState == .listening {
                 BuddyWaveformView(audioLevel: microphoneCapture.audioLevel)
+                    .position(buddyPosition)
+                    .transition(.opacity)
+            }
+
+            if isCursorOnThisScreen && companionManager.voiceState == .transcribing {
+                BuddySpinnerView()
                     .position(buddyPosition)
                     .transition(.opacity)
             }
@@ -157,7 +170,7 @@ struct BuddyOverlayView: View {
                     .frame(width: 1, height: 1)
                     .overlay(alignment: .topLeading) {
                         BuddySpeechBubble(text: visibleBubbleText)
-                            .offset(x: 10, y: 8)
+                            .offset(x: 14, y: 8)
                     }
                     .position(buddyPosition)
                     .opacity(visibleBubbleOpacity)
@@ -231,14 +244,44 @@ struct BuddyWaveformView: View {
     }
 }
 
+/// A small spinning arc shown while Tiko works on what the user said.
+struct BuddySpinnerView: View {
+    @State private var isSpinning = false
+
+    var body: some View {
+        Circle()
+            .trim(from: 0.15, to: 0.85)
+            .stroke(
+                AngularGradient(colors: [tikoAccentColor.opacity(0), tikoAccentColor], center: .center),
+                style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+            )
+            .frame(width: 14, height: 14)
+            .rotationEffect(.degrees(isSpinning ? 360 : 0))
+            .shadow(color: tikoAccentColor.opacity(0.6), radius: 6)
+            .onAppear {
+                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                    isSpinning = true
+                }
+            }
+    }
+}
+
 /// The small orange speech bubble the buddy talks through.
 struct BuddySpeechBubble: View {
     let text: String
+
+    /// Long text wraps at this width instead of running across the screen.
+    private static let maximumWidth: CGFloat = 280
 
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.white)
+            // Long live transcripts keep their newest words visible.
+            .lineLimit(4)
+            .truncationMode(.head)
+            // Wrap to the available width, but always take the height the lines need.
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
@@ -246,7 +289,8 @@ struct BuddySpeechBubble: View {
                     .fill(tikoAccentColor)
                     .shadow(color: tikoAccentColor.opacity(0.5), radius: 6)
             )
-            // Take the text's natural size even though the anchor proposes 1×1.
-            .fixedSize()
+            // The anchor proposes 1×1; this gives the text real room to lay out in,
+            // while short text still hugs its own width.
+            .frame(width: Self.maximumWidth, alignment: .leading)
     }
 }

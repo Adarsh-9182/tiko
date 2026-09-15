@@ -25,6 +25,18 @@ struct CompanionPanelView: View {
 
             pushToTalkHint
 
+            if let lastTranscript = companionManager.lastTranscript {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Last heard")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(lastTranscript)
+                        .font(.system(size: 12))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             Toggle(isOn: $companionManager.isBuddyVisible) {
                 Text("Show Tiko next to my cursor")
                     .font(.system(size: 12))
