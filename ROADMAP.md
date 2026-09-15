@@ -40,5 +40,5 @@ Beyond fixing those, Tiko adds:
 | 8 | Voice out | `AVSpeechSynthesizer` plus captions; interruptible | done |
 | 9 | Guided tours | Multi-step point tags; tap the shortcut for the next step | done |
 | 10 | Settings | Hotkey, language, voice, history, copy last answer | done |
-| 11 | Accuracy benchmark | Synthetic screens with known targets; single-pass vs zoom-refined hit rate — latest: single guess 81%, with close-up check 83% ([results](benchmarks/RESULTS.md)) | done |
+| 11 | Accuracy benchmark | Synthetic screens with known targets; single-pass vs zoom-refined hit rate — latest: single guess 79%, close-up check on every question 78%, Tiko (label read on screen, else close-up check) 83% with 1.53 requests per question ([results](benchmarks/RESULTS.md)) | done |
 | 12 | Distribution | Unsigned zip, checksum, app icon and install guide; Developer ID signing and notarization when budget allows | done (unsigned) |
