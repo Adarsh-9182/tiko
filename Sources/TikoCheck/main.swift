@@ -431,6 +431,23 @@ do {
 try? FileManager.default.removeItem(at: temporarySettingsFolderURL)
 check(TikoSettings.load(from: temporarySettingsFileURL) == TikoSettings(), "a missing settings file loads as empty settings")
 
+// MARK: - App updates
+
+print("App updates")
+check(AppVersion("v0.10.0").flatMap { newerVersion in AppVersion("0.9.1").map { olderVersion in newerVersion > olderVersion } } == true, "versions compare as numbers, not text")
+check(AppVersion("0.2") == AppVersion("0.2.0"), "a missing last number counts as zero")
+check(AppVersion("dev") == nil && AppVersion("1..2") == nil, "a development build has no version to compare")
+
+let latestReleaseResponse = Data(#"{"tag_name":"v0.2.0","html_url":"https://github.com/Adarsh-9182/tiko/releases/tag/v0.2.0","draft":false,"prerelease":false}"#.utf8)
+check(
+    AppUpdateCheck.availableUpdate(currentVersion: "0.1.0", latestReleaseData: latestReleaseResponse)?.version == AppVersion("0.2.0"),
+    "a newer release is offered"
+)
+check(AppUpdateCheck.availableUpdate(currentVersion: "0.2.0", latestReleaseData: latestReleaseResponse) == nil, "the running version isn't offered again")
+check(AppUpdateCheck.availableUpdate(currentVersion: "dev", latestReleaseData: latestReleaseResponse) == nil, "a development build is never offered updates")
+let offSiteReleaseResponse = Data(#"{"tag_name":"v9.0.0","html_url":"https://example.com/tiko.zip"}"#.utf8)
+check(AppUpdateCheck.availableUpdate(currentVersion: "0.1.0", latestReleaseData: offSiteReleaseResponse) == nil, "a release page outside github.com is never offered")
+
 // MARK: - Live
 
 /// A point on the element's row, not only on its letters or knob, counts as a hit.

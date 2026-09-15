@@ -2,30 +2,28 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleIdentifier</key>
-	<string>com.adarshbhardwaj.tiko</string>
-	<key>CFBundleName</key>
-	<string>Tiko</string>
 	<key>CFBundleDisplayName</key>
 	<string>Tiko</string>
 	<key>CFBundleExecutable</key>
 	<string>Tiko</string>
 	<key>CFBundleIconFile</key>
 	<string>Tiko</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.adarshbhardwaj.tiko</string>
+	<key>CFBundleName</key>
+	<string>Tiko</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<!-- Menu bar only: no Dock icon, no main window. -->
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
-	<!-- Shown in the system prompts. macOS crashes the app on request if these are missing. -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Tiko listens while you hold the push-to-talk shortcut, so it can hear your question.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

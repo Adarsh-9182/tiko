@@ -21,6 +21,10 @@ struct CompanionPanelView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
+            if let availableUpdate = companionManager.availableUpdate {
+                updateRow(availableUpdate)
+            }
+
             Divider()
 
             if companionManager.permissions.areAllGranted {
@@ -127,6 +131,29 @@ struct CompanionPanelView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    private func updateRow(_ availableUpdate: AvailableUpdate) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(tikoAccentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Tiko \(availableUpdate.version.description) is out")
+                    .font(.system(size: 12, weight: .medium))
+                Text("You have \(appVersion). Download it, then replace the app.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Button("Download") {
+                NSWorkspace.shared.open(availableUpdate.pageURL)
+            }
+            .controlSize(.small)
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tikoAccentColor.opacity(0.1)))
     }
 
     private func tourRow(_ activeTour: GuidedTour) -> some View {

@@ -27,7 +27,9 @@ final class SettingsWindowController {
             window.contentView = NSHostingView(rootView: SettingsView(
                 companionManager: companionManager,
                 preferences: companionManager.preferences,
-                buddyVoice: companionManager.buddyVoice
+                buddyVoice: companionManager.buddyVoice,
+                updateChecker: companionManager.updateChecker,
+                launchAtLogin: companionManager.launchAtLogin
             ))
             window.center()
             settingsWindow = window
@@ -42,6 +44,8 @@ struct SettingsView: View {
     @ObservedObject var companionManager: CompanionManager
     @ObservedObject var preferences: TikoPreferences
     @ObservedObject var buddyVoice: BuddyVoice
+    @ObservedObject var updateChecker: UpdateChecker
+    @ObservedObject var launchAtLogin: LaunchAtLogin
 
     var body: some View {
         TabView {
@@ -103,6 +107,40 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Show Tiko next to my cursor", isOn: $companionManager.isBuddyVisible)
+            }
+
+            Section {
+                Toggle("Open Tiko when I log in", isOn: Binding(
+                    get: { launchAtLogin.isEnabled },
+                    set: { shouldEnable in launchAtLogin.setEnabled(shouldEnable) }
+                ))
+                if launchAtLogin.needsApproval {
+                    HStack {
+                        Text("macOS wants you to allow Tiko under Login Items first.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Button("Open Login Items") {
+                            launchAtLogin.openLoginItemsSettings()
+                        }
+                    }
+                }
+                if let errorMessage = launchAtLogin.errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Toggle("Check for new versions once a day", isOn: $updateChecker.isCheckingAutomatically)
+                Text("Asks GitHub for Tiko's latest release. Nothing about you is sent, and nothing is installed without you.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .onAppear {
+                launchAtLogin.refresh()
             }
 
             Section {

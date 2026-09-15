@@ -110,6 +110,11 @@ final class CompanionManager: ObservableObject {
     let speechTranscriber = SpeechTranscriber()
     /// Shared with Settings so it can show which voice is speaking.
     let buddyVoice = BuddyVoice()
+    /// Shared with Settings, where daily checks can be turned off.
+    let updateChecker = UpdateChecker()
+    let launchAtLogin = LaunchAtLogin()
+    /// A newer release, mirrored from the update checker for the panel.
+    @Published private(set) var availableUpdate: AvailableUpdate?
 
     /// Everything Tiko needs before it can answer: all four permissions and a working key.
     var isSetUpComplete: Bool {
@@ -185,6 +190,12 @@ final class CompanionManager: ObservableObject {
                 self?.buddyVoice.speechRate = speakingSpeed.speechRate
             }
             .store(in: &preferenceSubscriptions)
+        updateChecker.$availableUpdate
+            .sink { [weak self] availableUpdate in
+                self?.availableUpdate = availableUpdate
+            }
+            .store(in: &preferenceSubscriptions)
+        updateChecker.start()
 
         // Checked right away, so the app can tell at launch whether setup is still needed.
         refreshPermissions()
