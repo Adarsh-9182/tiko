@@ -43,8 +43,8 @@ logged to `~/Library/Logs/Tiko/tiko.log` — never the key, screenshots or what 
    then tap **⌃ Control + ⌥ Option** (or say "next" / "aage" / "ho gaya") and it
    looks at the screen again for the next one.
 5. **Settings…** in the panel changes the shortcut (including a one-key Right ⌥),
-   the language you speak, the voice and its speed, and shows your history, which
-   is saved only on this Mac.
+   the language you speak, which Gemini model answers (automatic picks the fastest),
+   the voice and its speed, and shows your history, which is saved only on this Mac.
 
 ## Check
 

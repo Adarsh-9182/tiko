@@ -4,17 +4,31 @@ import Foundation
 /// Support that only the current user can read, because it holds an API key.
 public struct TikoSettings: Codable, Equatable, Sendable {
     public var geminiAPIKey: String
-    /// Picked from the models the key can reach, best first. Refreshed whenever the key is saved.
+    /// Picked automatically from the models the key can reach, fastest first.
+    /// Refreshed whenever the key is saved.
     public var geminiModelNames: [String]
+    /// Every model the key can ask questions of, for the model picker in Settings.
+    public var availableModelNames: [String]
+    /// A model the user picked in Settings; nil means automatic.
+    public var chosenModelName: String?
 
-    public init(geminiAPIKey: String = "", geminiModelNames: [String] = []) {
+    public init(
+        geminiAPIKey: String = "",
+        geminiModelNames: [String] = [],
+        availableModelNames: [String] = [],
+        chosenModelName: String? = nil
+    ) {
         self.geminiAPIKey = geminiAPIKey
         self.geminiModelNames = geminiModelNames
+        self.availableModelNames = availableModelNames
+        self.chosenModelName = chosenModelName
     }
 
     private enum CodingKeys: String, CodingKey {
         case geminiAPIKey
         case geminiModelNames
+        case availableModelNames
+        case chosenModelName
     }
 
     // Missing fields fall back to defaults, so a settings file written by an
@@ -23,6 +37,13 @@ public struct TikoSettings: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         geminiAPIKey = try container.decodeIfPresent(String.self, forKey: .geminiAPIKey) ?? ""
         geminiModelNames = try container.decodeIfPresent([String].self, forKey: .geminiModelNames) ?? []
+        availableModelNames = try container.decodeIfPresent([String].self, forKey: .availableModelNames) ?? []
+        chosenModelName = try container.decodeIfPresent(String.self, forKey: .chosenModelName)
+    }
+
+    /// The models to try for a question, best first.
+    public var modelNamesToTry: [String] {
+        GeminiModelPicker.modelsToTry(chosenModelName: chosenModelName, automaticModelNames: geminiModelNames)
     }
 
     /// The `GEMINI_API_KEY` environment variable wins over the saved key, so

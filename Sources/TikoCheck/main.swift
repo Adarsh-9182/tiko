@@ -82,6 +82,34 @@ let pickedModelNames = GeminiModelPicker.preferredModelNames(from: [
 ])
 check(pickedModelNames == ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.7-flash-lite"], "lite first, then flash; image, preview and embedding models skipped")
 
+let choosableModelNames = GeminiModelPicker.choosableModelNames(from: [
+    "gemini-3.8-pro",
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
+    "gemini-3.8-flash-image",
+    "text-embedding-004",
+    "gemini-pro-latest"
+])
+check(
+    choosableModelNames == ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-pro-latest", "gemini-3.8-pro"],
+    "Settings offers lite, flash and pro, skipping image and embedding models"
+)
+check(
+    GeminiModelPicker.modelsToTry(chosenModelName: "gemini-pro-latest", automaticModelNames: ["gemini-flash-lite-latest", "gemini-flash-latest"])
+        == ["gemini-pro-latest", "gemini-flash-lite-latest", "gemini-flash-latest"],
+    "a chosen model is tried first, with the automatic picks behind it"
+)
+check(
+    GeminiModelPicker.modelsToTry(chosenModelName: nil, automaticModelNames: ["gemini-flash-lite-latest"]) == ["gemini-flash-lite-latest"],
+    "without a choice, the automatic picks are used"
+)
+let oldSettingsFile = Data(#"{"geminiAPIKey":"old-key","geminiModelNames":["gemini-flash-lite-latest"]}"#.utf8)
+let settingsFromOldFile = try? JSONDecoder().decode(TikoSettings.self, from: oldSettingsFile)
+check(
+    settingsFromOldFile?.chosenModelName == nil && settingsFromOldFile?.availableModelNames == [] && settingsFromOldFile?.geminiAPIKey == "old-key",
+    "a settings file from before the model picker still loads, as automatic"
+)
+
 // MARK: - Point tags
 
 print("Point tags")
@@ -321,6 +349,41 @@ let offScreenTargets = PointingBenchmark.cases.filter { benchmarkCase in
     return !CGRect(origin: .zero, size: screen.pointSize).contains(targetRect)
 }
 check(offScreenTargets.isEmpty, "every benchmark target lies fully on its screen")
+
+// MARK: - Text anchor
+
+print("Text anchor")
+check(TextAnchor.searchPhrase(for: "Wallpaper") == "wallpaper", "a plain label is searched for as written")
+check(TextAnchor.searchPhrase(for: "Save button") == "save", "the element type is dropped from the label")
+check(TextAnchor.searchPhrase(for: "Don’t Save") == "dont save", "curly apostrophes are normalised")
+check(TextAnchor.searchPhrase(for: "Bluetooth switch") == nil, "a switch isn't looked for as text")
+check(TextAnchor.searchPhrase(for: "email field") == nil, "a text field isn't looked for as its caption")
+check(TextAnchor.searchPhrase(for: "filter icon") == nil, "an icon isn't looked for as text")
+
+if let settingsScreenForAnchor = SyntheticScreens.systemSettings(scale: 2),
+   let wallpaperRect = settingsScreenForAnchor.elementRects["sidebar:Wallpaper"] {
+    let settingsTexts = TextAnchor.recognizeText(in: settingsScreenForAnchor.fullResolutionImage, imageAreaSize: settingsScreenForAnchor.pointSize)
+    print("  read \(settingsTexts.count) pieces of text off the System Settings screen")
+    // The benchmark's worst miss: the model named Wallpaper but pointed 600 points away.
+    let farOffGuess = CGPoint(x: 890, y: 548)
+    let wallpaperAnchor = TextAnchor.anchorPoint(forLabel: "Wallpaper", among: settingsTexts, nearGuess: farOffGuess)
+    check(wallpaperAnchor.map { wallpaperRect.contains($0) } == true, "a correctly named label snaps a far-off guess onto the sidebar item")
+    check(TextAnchor.anchorPoint(forLabel: "Screen Saver", among: settingsTexts, nearGuess: farOffGuess) == nil, "a label that isn't on screen finds nothing")
+} else {
+    check(false, "the System Settings screen renders for the text anchor check")
+}
+
+if let saveDialogForAnchor = SyntheticScreens.saveChangesDialog(scale: 2),
+   let saveButtonRect = saveDialogForAnchor.elementRects["button:Save"],
+   let dontSaveButtonRect = saveDialogForAnchor.elementRects["button:Don't Save"] {
+    let dialogTexts = TextAnchor.recognizeText(in: saveDialogForAnchor.fullResolutionImage, imageAreaSize: saveDialogForAnchor.pointSize)
+    let saveAnchor = TextAnchor.anchorPoint(forLabel: "Save button", among: dialogTexts, nearGuess: CGPoint(x: 700, y: 150))
+    check(saveAnchor.map { saveButtonRect.contains($0) } == true, "\"Save\" snaps to the Save button, not the sentence or Don't Save")
+    let dontSaveAnchor = TextAnchor.anchorPoint(forLabel: "Don't Save", among: dialogTexts, nearGuess: CGPoint(x: 850, y: 260))
+    check(dontSaveAnchor.map { dontSaveButtonRect.contains($0) } == true, "\"Don't Save\" snaps to its own button")
+} else {
+    check(false, "the save dialog renders for the text anchor check")
+}
 
 // MARK: - Log
 

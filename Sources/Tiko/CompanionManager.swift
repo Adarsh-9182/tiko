@@ -26,6 +26,25 @@ struct BuddyMessage: Equatable {
     let isReply: Bool
 }
 
+/// How a pointing guess was settled after the model's first answer.
+enum PointRefinement: Equatable {
+    /// Neither check could improve it, so the model's first guess stands.
+    case firstGuess
+    /// Snapped onto the element's label, read off the screen on the Mac.
+    case textAnchor
+    /// Moved by the model's second look at a sharp close-up.
+    case closeUpCheck
+
+    /// Shown after "Pointed at …" in the panel.
+    var panelSuffix: String {
+        switch self {
+        case .firstGuess: return ""
+        case .textAnchor: return " · found by its label"
+        case .closeUpCheck: return " · zoom-checked"
+        }
+    }
+}
+
 /// Somewhere on screen the buddy should fly to.
 struct PointingTarget: Equatable {
     let id = UUID()
@@ -34,8 +53,7 @@ struct PointingTarget: Equatable {
     /// The display the element is on, so only that screen's overlay flies there.
     let displayFrame: CGRect
     let elementLabel: String
-    /// Whether the close-up double-check confirmed the spot.
-    let wasZoomChecked: Bool
+    let refinement: PointRefinement
 }
 
 /// Tiko's central state: permissions, the cursor buddy, push-to-talk, speech
@@ -61,6 +79,10 @@ final class CompanionManager: ObservableObject {
     @Published private(set) var geminiKeyStatus: GeminiKeyStatus
     /// Every question and answer, saved on this Mac for the History tab.
     @Published private(set) var conversationLog = ConversationLog.load()
+    /// Models the Settings picker offers, fastest family first.
+    @Published private(set) var choosableModelNames: [String]
+    /// The model picked in Settings; nil means automatic.
+    @Published private(set) var chosenModelName: String?
 
     /// Whether the buddy follows the cursor. Saved so the choice survives restarts.
     @Published var isBuddyVisible = UserDefaults.standard.object(forKey: CompanionManager.buddyVisibleDefaultsKey) as? Bool ?? true {
@@ -107,6 +129,11 @@ final class CompanionManager: ObservableObject {
     private var transcriptionTask: Task<Void, Never>?
     private var replyTask: Task<Void, Never>?
     private var listeningStartTime = ContinuousClock.now
+    /// Whether setup was complete the last time it was checked, to notice the moment it becomes complete.
+    private var wasSetUpComplete = false
+    /// Setup completion is only announced once launch has finished, so an
+    /// already-set-up Tiko doesn't announce it every time it opens.
+    private var isWatchingForSetupCompletion = false
 
     private static let buddyVisibleDefaultsKey = "isBuddyVisible"
     private static let speakRepliesDefaultsKey = "isSpeakingRepliesEnabled"
@@ -130,6 +157,8 @@ final class CompanionManager: ObservableObject {
         geminiKeyStatus = !savedSettings.geminiAPIKey.isEmpty && !savedSettings.geminiModelNames.isEmpty
             ? .ready(modelNames: savedSettings.geminiModelNames)
             : .missing
+        choosableModelNames = savedSettings.availableModelNames
+        chosenModelName = savedSettings.chosenModelName
     }
 
     func start() {
@@ -161,6 +190,8 @@ final class CompanionManager: ObservableObject {
         refreshPermissions()
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
         TikoLog.write("launched v\(appVersion) · \(Self.describe(permissions)) · key \(keyStatusDescription)")
+        wasSetUpComplete = isSetUpComplete
+        isWatchingForSetupCompletion = true
 
         // macOS doesn't tell an app when the user flips a switch in System
         // Settings, so poll. It's cheap, and the panel updates within a moment.
@@ -179,6 +210,7 @@ final class CompanionManager: ObservableObject {
         if latestSnapshot != permissions {
             permissions = latestSnapshot
             TikoLog.write("permissions changed · \(Self.describe(latestSnapshot))")
+            announceIfSetUpJustCompleted()
         }
 
         // The shortcut tap can only exist while Accessibility is granted, so
@@ -214,7 +246,7 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    // MARK: - Gemini key
+    // MARK: - Gemini key and model
 
     /// Checks the key by listing the models it can use, and saves it only if that works.
     func saveGeminiAPIKey(_ enteredAPIKey: String) {
@@ -233,13 +265,20 @@ final class CompanionManager: ObservableObject {
                     return
                 }
 
+                let choosableModelNames = GeminiModelPicker.choosableModelNames(from: availableModelNames)
                 var updatedSettings = self.settings
                 updatedSettings.geminiAPIKey = trimmedAPIKey
                 updatedSettings.geminiModelNames = preferredModelNames
+                updatedSettings.availableModelNames = choosableModelNames
+                // A model chosen for the old key may not exist for the new one.
+                if let chosenModelName = updatedSettings.chosenModelName, !choosableModelNames.contains(chosenModelName) {
+                    updatedSettings.chosenModelName = nil
+                }
                 try updatedSettings.save()
-                self.settings = updatedSettings
+                self.applySettings(updatedSettings)
                 self.geminiKeyStatus = .ready(modelNames: preferredModelNames)
-                TikoLog.write("key saved · models \(preferredModelNames.joined(separator: ", "))")
+                TikoLog.write("key saved · automatic models \(preferredModelNames.joined(separator: ", ")) · \(choosableModelNames.count) choosable")
+                self.announceIfSetUpJustCompleted()
             } catch {
                 TikoLog.write("key check failed: \(error.localizedDescription)")
                 self?.geminiKeyStatus = .failed(message: error.localizedDescription)
@@ -251,14 +290,51 @@ final class CompanionManager: ObservableObject {
         var updatedSettings = settings
         updatedSettings.geminiAPIKey = ""
         updatedSettings.geminiModelNames = []
+        updatedSettings.availableModelNames = []
+        updatedSettings.chosenModelName = nil
         do {
             try updatedSettings.save()
-            settings = updatedSettings
+            applySettings(updatedSettings)
             geminiKeyStatus = .missing
             TikoLog.write("key removed")
         } catch {
             geminiKeyStatus = .failed(message: "key hata nahi paaye: \(error.localizedDescription)")
         }
+    }
+
+    /// Picks the model answers come from; nil goes back to automatic.
+    func chooseModel(_ modelName: String?) {
+        var updatedSettings = settings
+        updatedSettings.chosenModelName = modelName
+        do {
+            try updatedSettings.save()
+            applySettings(updatedSettings)
+            TikoLog.write("model chosen: \(modelName ?? "automatic")")
+        } catch {
+            TikoLog.write("couldn't save the model choice: \(error.localizedDescription)")
+        }
+    }
+
+    /// A key saved before the model picker existed has no list of models yet;
+    /// fetch it once so the picker has something to offer.
+    func refreshAvailableModels() {
+        guard case .ready = geminiKeyStatus, choosableModelNames.isEmpty else { return }
+        let apiKey = settings.geminiAPIKey
+        Task { [weak self] in
+            guard let availableModelNames = try? await GeminiClient(apiKey: apiKey, modelNames: []).fetchAvailableModelNames(),
+                  let self else { return }
+            var updatedSettings = self.settings
+            updatedSettings.availableModelNames = GeminiModelPicker.choosableModelNames(from: availableModelNames)
+            try? updatedSettings.save()
+            self.applySettings(updatedSettings)
+            TikoLog.write("model list refreshed · \(updatedSettings.availableModelNames.count) choosable")
+        }
+    }
+
+    private func applySettings(_ updatedSettings: TikoSettings) {
+        settings = updatedSettings
+        choosableModelNames = updatedSettings.availableModelNames
+        chosenModelName = updatedSettings.chosenModelName
     }
 
     func copyLastReply() {
@@ -313,6 +389,17 @@ final class CompanionManager: ObservableObject {
             ? Task { await Self.captureScreenContextLogged() }
             : nil
         answer(question: question, screenContextTask: screenContextTask, continuingTour: nil)
+    }
+
+    /// The moment the last permission or the key falls into place, say how to
+    /// start — a menu bar app otherwise gives no sign that setup worked.
+    private func announceIfSetUpJustCompleted() {
+        guard isWatchingForSetupCompletion else { return }
+        let isNowSetUp = isSetUpComplete
+        defer { wasSetUpComplete = isNowSetUp }
+        guard isNowSetUp, !wasSetUpComplete else { return }
+        TikoLog.write("setup complete")
+        showBuddyMessage("sab set! ab \(preferences.pushToTalkShortcut.symbols) pakad ke kuch bhi poochho, jaise \"yeh kya hai?\"", for: .seconds(8))
     }
 
     // MARK: - Keyboard
@@ -510,7 +597,7 @@ final class CompanionManager: ObservableObject {
                 let bubbleText = isTourStep ? "\(displayText)\n\(tourHint)" : displayText
 
                 // Show the words and start speaking right away; the buddy flies over
-                // once the point is double-checked. The bubble stays until both are done.
+                // once the point is settled. The bubble stays until both are done.
                 let replyMessage = BuddyMessage(text: bubbleText, isReply: true)
                 self.showBuddyMessage(replyMessage, for: nil)
                 let replyShownTime = ContinuousClock.now
@@ -550,11 +637,11 @@ final class CompanionManager: ObservableObject {
     }
 
     private func fetchReply(to question: String, screenContext: ScreenContext?) async throws -> GeminiReply {
-        guard case .ready(let modelNames) = geminiKeyStatus, !settings.geminiAPIKey.isEmpty else {
+        guard case .ready = geminiKeyStatus, !settings.geminiAPIKey.isEmpty else {
             throw GeminiClientError.missingAPIKey
         }
 
-        let geminiClient = GeminiClient(apiKey: settings.geminiAPIKey, modelNames: modelNames)
+        let geminiClient = GeminiClient(apiKey: settings.geminiAPIKey, modelNames: settings.modelNamesToTry)
         return try await geminiClient.generateReply(
             systemInstruction: CompanionPrompt.systemInstruction(canSeeScreen: screenContext != nil),
             history: conversationHistory,
@@ -579,7 +666,8 @@ final class CompanionManager: ObservableObject {
 
     // MARK: - Pointing
 
-    /// Turns the reply's point tag into a spot on a real screen, double-checked on a close-up.
+    /// Turns the reply's point tag into a spot on a real screen: the label read
+    /// off the screen when it's text, otherwise the model's close-up check.
     private func resolvePointingTarget(for parsedReply: PointTagParseResult, question: String, screenContext: ScreenContext) async -> PointingTarget? {
         guard let normalizedPoint = parsedReply.normalizedPoint, let cursorScreen = screenContext.screens.first else {
             return nil
@@ -595,6 +683,16 @@ final class CompanionManager: ObservableObject {
         let firstGuessInDisplay = ScreenCoordinates.point(fromNormalized: normalizedPoint, in: wholeDisplay)
         let elementLabel = parsedReply.elementLabel ?? "yahan"
 
+        // A label that is readable text is found on the Mac itself: exact, and
+        // without spending a second request on the model.
+        let textAnchorStartTime = ContinuousClock.now
+        if let anchoredPointInDisplay = await textAnchoredPoint(near: firstGuessInDisplay, on: targetScreen, elementLabel: elementLabel) {
+            let distanceMoved = Int(hypot(anchoredPointInDisplay.x - firstGuessInDisplay.x, anchoredPointInDisplay.y - firstGuessInDisplay.y))
+            TikoLog.write("found the label on screen \(distanceMoved) pt from the first guess, in \(Self.milliseconds(since: textAnchorStartTime)) ms")
+            return makePointingTarget(at: anchoredPointInDisplay, on: targetScreen, elementLabel: elementLabel, refinement: .textAnchor)
+        }
+
+        // Icons, switches and fields — or a label that isn't on screen — go to the model's close-up check.
         let zoomCheckStartTime = ContinuousClock.now
         let zoomCheckedPointInDisplay = await zoomCheckPoint(
             firstGuessInDisplay,
@@ -605,31 +703,56 @@ final class CompanionManager: ObservableObject {
         if let zoomCheckedPointInDisplay {
             let distanceMoved = Int(hypot(zoomCheckedPointInDisplay.x - firstGuessInDisplay.x, zoomCheckedPointInDisplay.y - firstGuessInDisplay.y))
             TikoLog.write("zoom check moved the point \(distanceMoved) pt in \(Self.milliseconds(since: zoomCheckStartTime)) ms")
-        } else {
-            TikoLog.write("zoom check kept the first guess after \(Self.milliseconds(since: zoomCheckStartTime)) ms")
+            return makePointingTarget(at: zoomCheckedPointInDisplay, on: targetScreen, elementLabel: elementLabel, refinement: .closeUpCheck)
         }
-        let finalPointInDisplay = zoomCheckedPointInDisplay ?? firstGuessInDisplay
 
-        return PointingTarget(
-            location: ScreenCoordinates.appKitGlobalPoint(fromDisplayPoint: finalPointInDisplay, displayFrame: targetScreen.displayFrame),
+        TikoLog.write("zoom check kept the first guess after \(Self.milliseconds(since: zoomCheckStartTime)) ms")
+        return makePointingTarget(at: firstGuessInDisplay, on: targetScreen, elementLabel: elementLabel, refinement: .firstGuess)
+    }
+
+    private func makePointingTarget(at pointInDisplay: CGPoint, on targetScreen: CapturedScreen, elementLabel: String, refinement: PointRefinement) -> PointingTarget {
+        PointingTarget(
+            location: ScreenCoordinates.appKitGlobalPoint(fromDisplayPoint: pointInDisplay, displayFrame: targetScreen.displayFrame),
             displayFrame: targetScreen.displayFrame,
             elementLabel: elementLabel,
-            wasZoomChecked: zoomCheckedPointInDisplay != nil
+            refinement: refinement
         )
+    }
+
+    /// Reads the target screen on the Mac and returns where the element's label
+    /// text sits, or nil when the label isn't text, or isn't readable there.
+    private func textAnchoredPoint(near firstGuessInDisplay: CGPoint, on targetScreen: CapturedScreen, elementLabel: String) async -> CGPoint? {
+        guard TextAnchor.searchPhrase(for: elementLabel) != nil else { return nil }
+        let displaySize = targetScreen.displayFrame.size
+
+        // A fresh full-detail capture: the screenshot sent to Gemini is scaled
+        // down too far to read small interface labels reliably.
+        guard let screenJPEG = try? await ScreenCaptureService.captureRegion(
+            displayID: targetScreen.displayID,
+            rectInDisplay: CGRect(origin: .zero, size: displaySize)
+        ) else {
+            return nil
+        }
+
+        // Reading a whole screen takes a moment; keep it off the main thread so the buddy stays smooth.
+        return await Task.detached(priority: .userInitiated) {
+            let recognizedTexts = TextAnchor.recognizeText(inImageData: screenJPEG, imageAreaSize: displaySize)
+            return TextAnchor.anchorPoint(forLabel: elementLabel, among: recognizedTexts, nearGuess: firstGuessInDisplay)
+        }.value
     }
 
     /// The full screenshot Gemini saw was scaled down, so its first guess can be
     /// a little off. Capture a sharp close-up around the guess and ask again.
     /// Returns nil if the check doesn't finish in time or can't find the element.
     private func zoomCheckPoint(_ firstGuessInDisplay: CGPoint, on targetScreen: CapturedScreen, elementLabel: String, question: String) async -> CGPoint? {
-        guard case .ready(let modelNames) = geminiKeyStatus else { return nil }
+        guard case .ready = geminiKeyStatus else { return nil }
 
         let regionRect = CloseUpRegion.captureRect(
             centeredOn: firstGuessInDisplay,
             displaySize: targetScreen.displayFrame.size,
             regionSize: Self.pointRefinementRegionSize
         )
-        let geminiClient = GeminiClient(apiKey: settings.geminiAPIKey, modelNames: modelNames)
+        let geminiClient = GeminiClient(apiKey: settings.geminiAPIKey, modelNames: settings.modelNamesToTry)
         let displayID = targetScreen.displayID
 
         return await Self.firstResult(within: Self.pointRefinementTimeLimit) {
@@ -711,7 +834,7 @@ final class CompanionManager: ObservableObject {
         switch geminiKeyStatus {
         case .missing: return "missing"
         case .checking: return "checking"
-        case .ready(let modelNames): return "ready (\(modelNames.first ?? "no model"))"
+        case .ready: return "ready (\(settings.modelNamesToTry.first ?? "no model")\(chosenModelName == nil ? ", automatic" : ", chosen"))"
         case .failed: return "failed"
         }
     }

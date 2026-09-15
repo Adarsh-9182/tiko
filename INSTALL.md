@@ -47,7 +47,8 @@ that permission to a freshly opened app.
 
 1. Create a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 2. Paste it into Tiko's panel and click **Save**. Tiko checks the key and picks the
-   fastest model it can use.
+   fastest model it can use. With a paid key or more quota, **Settings… → Answers from**
+   picks a stronger flash or pro model; if it's busy, Tiko falls back to the fast ones.
 
 The key is saved only on your Mac, in a file only your user account can read.
 

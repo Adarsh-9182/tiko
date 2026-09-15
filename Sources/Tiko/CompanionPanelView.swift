@@ -71,7 +71,7 @@ struct CompanionPanelView: View {
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                     if let lastPointingTarget = companionManager.lastPointingTarget {
-                        Text("Pointed at \(lastPointingTarget.elementLabel)\(lastPointingTarget.wasZoomChecked ? " · zoom-checked" : "")")
+                        Text("Pointed at \(lastPointingTarget.elementLabel)\(lastPointingTarget.refinement.panelSuffix)")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -164,7 +164,7 @@ struct CompanionPanelView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 13))
                         .foregroundStyle(.green)
-                    Text("Saved · \(modelNames.first ?? "")")
+                    Text("Saved · \(companionManager.chosenModelName ?? modelNames.first ?? "")")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

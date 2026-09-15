@@ -83,6 +83,25 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Answers from", selection: Binding(
+                    get: { companionManager.chosenModelName },
+                    set: { newModelName in companionManager.chooseModel(newModelName) }
+                )) {
+                    Text("Automatic (fastest)").tag(String?.none)
+                    ForEach(companionManager.choosableModelNames, id: \.self) { modelName in
+                        Text(modelName).tag(String?.some(modelName))
+                    }
+                }
+                Text("Automatic uses the fastest model your key can reach. Pro models answer better but slower, and allow far fewer questions a day on the free tier.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .task {
+                companionManager.refreshAvailableModels()
+            }
+
+            Section {
                 Toggle("Show Tiko next to my cursor", isOn: $companionManager.isBuddyVisible)
             }
 
