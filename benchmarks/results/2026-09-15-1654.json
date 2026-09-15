@@ -1,0 +1,1522 @@
+{
+  "attempts" : [
+    {
+      "answerSeconds" : 2.253397291,
+      "elementLabel" : "Wallpaper",
+      "finalDistance" : 647.1256326247632,
+      "finalPoint" : [
+        897.12,
+        546.3
+      ],
+      "firstGuess" : [
+        897.12,
+        546.3
+      ],
+      "firstGuessDistance" : 647.1256326247632,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "wallpaper kaise badlu?",
+      "replyText" : "step 1: sidebar mein Wallpaper par click karo.",
+      "runNumber" : 1,
+      "screenName" : "system-settings",
+      "targetElementKey" : "sidebar:Wallpaper",
+      "zoomCheckSeconds" : 1.9479256249999999,
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.840722708,
+      "elementLabel" : "Battery",
+      "finalDistance" : 668.7210766829471,
+      "finalPoint" : [
+        918.72,
+        577.8000000000001
+      ],
+      "firstGuess" : [
+        918.72,
+        577.8000000000001
+      ],
+      "firstGuessDistance" : 668.7210766829471,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "battery ki health kahan dekhu?",
+      "replyText" : "step 1: sidebar mein Battery pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "system-settings",
+      "targetElementKey" : "sidebar:Battery",
+      "zoomCheckSeconds" : 1.477931209,
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.617082625,
+      "elementLabel" : "Language & Region",
+      "finalDistance" : 333.92073370786676,
+      "finalPoint" : [
+        516.0799999999999,
+        409.29999999999995
+      ],
+      "firstGuess" : [
+        701.28,
+        407.7
+      ],
+      "firstGuessDistance" : 148.73778403620247,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "mac ki language hindi kaise karu?",
+      "replyText" : "step 1: General settings mein Language and Region pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:Language & Region",
+      "zoomCheckSeconds" : 1.82262075,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        516.0799999999999,
+        409.29999999999995
+      ]
+    },
+    {
+      "answerSeconds" : 1.49746025,
+      "elementLabel" : "Date & Time",
+      "finalDistance" : 391.84045937090264,
+      "finalPoint" : [
+        458.16,
+        461.40000000000003
+      ],
+      "firstGuess" : [
+        624.96,
+        462.6
+      ],
+      "firstGuessDistance" : 225.04079985638157,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "date aur time galat hai, kahan theek karu?",
+      "replyText" : "step 1: General settings ke andar Date and Time pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:Date & Time",
+      "zoomCheckSeconds" : 2.061114666,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        458.16,
+        461.40000000000003
+      ]
+    },
+    {
+      "answerSeconds" : 1.476137917,
+      "elementLabel" : "AirDrop & Handoff",
+      "finalDistance" : 311.8363474644994,
+      "finalPoint" : [
+        538.24,
+        299.1
+      ],
+      "firstGuess" : [
+        563.04,
+        305.1
+      ],
+      "firstGuessDistance" : 286.9614113430585,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "airdrop kahan se on hota hai?",
+      "replyText" : "step 1: General settings mein AirDrop and Handoff pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:AirDrop & Handoff",
+      "zoomCheckSeconds" : 3.466141125,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        538.24,
+        299.1
+      ]
+    },
+    {
+      "answerSeconds" : 1.953133084,
+      "elementLabel" : "bold button",
+      "finalDistance" : 0.6324555320336669,
+      "finalPoint" : [
+        144.4,
+        115.19999999999999
+      ],
+      "firstGuess" : [
+        148.32,
+        94.5
+      ],
+      "firstGuessDistance" : 20.767098978913737,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is text ko bold kaise karu?",
+      "replyText" : "is text ko bold karne ke liye pehle isko select karo, phir upar toolbar mein B icon pe click kar dena.",
+      "runNumber" : 1,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Bold",
+      "zoomCheckSeconds" : 2.401601125,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        144.4,
+        115.19999999999999
+      ]
+    },
+    {
+      "answerSeconds" : 1.994135041,
+      "elementLabel" : "table icon",
+      "finalDistance" : 0.4118252056394933,
+      "finalPoint" : [
+        464.64,
+        114.8
+      ],
+      "firstGuess" : [
+        462.24,
+        94.5
+      ],
+      "firstGuessDistance" : 20.684960720291443,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "document mein table kaise daalu?",
+      "replyText" : "table dalne ke liye upar toolbar mein table icon par click karo.",
+      "runNumber" : 1,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Insert table",
+      "zoomCheckSeconds" : 2.737578083,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        464.64,
+        114.8
+      ]
+    },
+    {
+      "answerSeconds" : 2.5730236250000003,
+      "elementLabel" : "picture icon",
+      "finalDistance" : 0.7939773296511521,
+      "finalPoint" : [
+        424.48,
+        115.6
+      ],
+      "firstGuess" : [
+        427.68,
+        115.2
+      ],
+      "firstGuessDistance" : 2.687452325158539,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "photo insert karni hai",
+      "replyText" : "photo insert karne ke liye upar toolbar mein picture wale icon pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Insert photo",
+      "zoomCheckSeconds" : 3.391239917,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        424.48,
+        115.6
+      ]
+    },
+    {
+      "answerSeconds" : 2.620176,
+      "elementLabel" : "share button",
+      "finalDistance" : 0.6324555320335905,
+      "finalPoint" : [
+        1294.4,
+        114.8
+      ],
+      "firstGuess" : [
+        1294.56,
+        115.2
+      ],
+      "firstGuessDistance" : 0.48332183894383374,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ye document share kaise karu?",
+      "replyText" : "yeh document share karne ke liye, upar right corner mein jo share icon hai us pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Share",
+      "zoomCheckSeconds" : 3.253506083,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        1294.4,
+        114.8
+      ]
+    },
+    {
+      "answerSeconds" : 2.075653459,
+      "elementLabel" : "numbered list icon",
+      "finalDistance" : 0.7858753081755834,
+      "finalPoint" : [
+        344.23999999999995,
+        115.19999999999999
+      ],
+      "firstGuess" : [
+        303.84,
+        94.5
+      ],
+      "firstGuessDistance" : 45.982557562623704,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "numbered list banani hai",
+      "replyText" : "step 1: upar toolbar mein numbered list icon pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Numbered list",
+      "zoomCheckSeconds" : 2.174753375,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        344.23999999999995,
+        115.19999999999999
+      ]
+    },
+    {
+      "answerSeconds" : 2.543633,
+      "elementLabel" : "Forgot password?",
+      "finalDistance" : 1.2895036711031886,
+      "finalPoint" : [
+        827.28,
+        439.29999999999995
+      ],
+      "firstGuess" : [
+        823.68,
+        432.9
+      ],
+      "firstGuessDistance" : 6.535529652812326,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "password bhool gaya, ab kya karu?",
+      "replyText" : "password reset karne ke liye yahan click karo.",
+      "runNumber" : 1,
+      "screenName" : "login-page",
+      "targetElementKey" : "link:Forgot password?",
+      "zoomCheckSeconds" : 3.582192084,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        827.28,
+        439.29999999999995
+      ]
+    },
+    {
+      "answerSeconds" : 1.70799225,
+      "elementLabel" : "Create an account",
+      "finalDistance" : 1.4204528657317006,
+      "finalPoint" : [
+        722.16,
+        648.7
+      ],
+      "firstGuess" : [
+        718.56,
+        683.1
+      ],
+      "firstGuessDistance" : 35.43157995656936,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "naya account kaise banau?",
+      "replyText" : "form ke sabse neeche create an account pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "login-page",
+      "targetElementKey" : "link:Create an account",
+      "zoomCheckSeconds" : 2.030228333,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        722.16,
+        648.7
+      ]
+    },
+    {
+      "answerSeconds" : 1.657266333,
+      "elementLabel" : "Continue with Google",
+      "finalDistance" : 0.3124099870363023,
+      "finalPoint" : [
+        719.76,
+        580.8
+      ],
+      "firstGuess" : [
+        718.56,
+        579.6
+      ],
+      "firstGuessDistance" : 2.008382433701334,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "google se login karna hai",
+      "replyText" : "google se sign in karne ke liye niche Continue with Google pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "login-page",
+      "targetElementKey" : "button:Continue with Google",
+      "zoomCheckSeconds" : 2.271899708,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        719.76,
+        580.8
+      ]
+    },
+    {
+      "answerSeconds" : 1.573617083,
+      "elementLabel" : "Remember me",
+      "finalDistance" : 11.91206971269425,
+      "finalPoint" : [
+        627.76,
+        440.2
+      ],
+      "firstGuess" : [
+        718.56,
+        426.59999999999997
+      ],
+      "firstGuessDistance" : 103.58081068586053,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "remember me wala tick kahan hai?",
+      "replyText" : "yeh raha remember me box, ispe click karke tick kar sakte ho.",
+      "runNumber" : 1,
+      "screenName" : "login-page",
+      "targetElementKey" : "checkbox:Remember me",
+      "zoomCheckSeconds" : 1.653642083,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        627.76,
+        440.2
+      ]
+    },
+    {
+      "answerSeconds" : 1.597455333,
+      "elementLabel" : "Email field",
+      "finalDistance" : 46.81121233208994,
+      "finalPoint" : [
+        673.3599999999999,
+        321
+      ],
+      "firstGuess" : [
+        718.56,
+        315
+      ],
+      "firstGuessDistance" : 2.4644674881199298,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "email kahan daalu?",
+      "replyText" : "email address dalne ke liye is box pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "login-page",
+      "targetElementKey" : "field:Email",
+      "zoomCheckSeconds" : 2.2958452080000002,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        673.3599999999999,
+        321
+      ]
+    },
+    {
+      "answerSeconds" : 4.6109423750000005,
+      "elementLabel" : "New Folder",
+      "finalDistance" : 67.74853470461737,
+      "finalPoint" : [
+        168.4,
+        65.60000000000001
+      ],
+      "firstGuess" : [
+        165.6,
+        63.00000000000001
+      ],
+      "firstGuessDistance" : 70.53672753385463,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "naya folder kaise banau?",
+      "replyText" : "naye folder ke liye shortcut hai command shift aur n, ya phir upar File menu mein jaakar New Folder pe click kar sakte ho.",
+      "runNumber" : 1,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:New Folder",
+      "zoomCheckSeconds" : 2.867708625,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        168.4,
+        65.60000000000001
+      ]
+    },
+    {
+      "answerSeconds" : 1.7343489170000002,
+      "elementLabel" : "Get Info",
+      "finalDistance" : 81.3306223171675,
+      "finalPoint" : [
+        154.8,
+        162.4
+      ],
+      "firstGuess" : [
+        161.28,
+        162
+      ],
+      "firstGuessDistance" : 74.849638671875,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is file ki info kaise dekhu?",
+      "replyText" : "is folder ki info dekhne ke liye isko select karo aur fir File menu mein Get Info pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Get Info",
+      "zoomCheckSeconds" : 1.352047417,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        154.8,
+        162.4
+      ]
+    },
+    {
+      "answerSeconds" : 1.783118,
+      "elementLabel" : "Compress",
+      "finalDistance" : 81.32970015005431,
+      "finalPoint" : [
+        154.8,
+        206.1
+      ],
+      "firstGuess" : [
+        155.52,
+        206.1
+      ],
+      "firstGuessDistance" : 80.60970069917295,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "file ko zip kaise karu?",
+      "replyText" : "file ko zip karne ke liye, pehle usko select karo aur phir dropdown menu mein Compress pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Compress",
+      "zoomCheckSeconds" : 2.015579708,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        154.8,
+        206.1
+      ]
+    },
+    {
+      "answerSeconds" : 1.618370583,
+      "elementLabel" : "Move to Trash",
+      "finalDistance" : 68.94008331468166,
+      "finalPoint" : [
+        167.2,
+        283.20000000000005
+      ],
+      "firstGuess" : [
+        169.92,
+        280.8
+      ],
+      "firstGuessDistance" : 66.22051232858476,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ye file delete karni hai",
+      "replyText" : "file delete karne ke liye usko drag karke sidebar mein Move to Trash pe drop kar do.",
+      "runNumber" : 1,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Move to Trash",
+      "zoomCheckSeconds" : 1.98926775,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        167.2,
+        283.20000000000005
+      ]
+    },
+    {
+      "answerSeconds" : 1.95451975,
+      "elementLabel" : "Duplicate",
+      "finalDistance" : 87.43486108382486,
+      "finalPoint" : [
+        148.71999999999997,
+        225.9
+      ],
+      "firstGuess" : [
+        342.71999999999997,
+        229.5
+      ],
+      "firstGuessDistance" : 106.60091523087519,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "file ki copy banani hai",
+      "replyText" : "file ki duplicate copy banane ke liye isko select karke duplicate option pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Duplicate",
+      "zoomCheckSeconds" : 2.023451,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        148.71999999999997,
+        225.9
+      ]
+    },
+    {
+      "answerSeconds" : 3.966822042,
+      "elementLabel" : "Don't Save",
+      "finalDistance" : 4.757141999141927,
+      "finalPoint" : [
+        645.52,
+        259.40000000000003
+      ],
+      "firstGuess" : [
+        645.12,
+        235.8
+      ],
+      "firstGuessDistance" : 25.668159263959684,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "bina save kiye band karna hai",
+      "replyText" : "bina save kiye band karna hai toh Don't Save pe click kar do.",
+      "runNumber" : 1,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Don't Save",
+      "zoomCheckSeconds" : 2.058314916,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        645.52,
+        259.40000000000003
+      ]
+    },
+    {
+      "answerSeconds" : 1.385306208,
+      "elementLabel" : "Save button",
+      "finalDistance" : 3.1759093186046083,
+      "finalPoint" : [
+        856.0799999999999,
+        258.6
+      ],
+      "firstGuess" : [
+        852.4799999999999,
+        232.20000000000002
+      ],
+      "firstGuessDistance" : 28.840083217633047,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "haan save kar do",
+      "replyText" : "save karne ke liye blue wale save button pe click kar do.",
+      "runNumber" : 1,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Save",
+      "zoomCheckSeconds" : 1.777091916,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        856.0799999999999,
+        258.6
+      ]
+    },
+    {
+      "answerSeconds" : 1.9230329579999998,
+      "elementLabel" : "Cancel button",
+      "finalDistance" : 0.6403124237432707,
+      "finalPoint" : [
+        757.6,
+        260.5
+      ],
+      "firstGuess" : [
+        763.2,
+        231.3
+      ],
+      "firstGuessDistance" : 30.15178270019867,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ruko, abhi band nahi karna",
+      "replyText" : "agar changes lose nahi karne hain toh cancel pe click karke document save kar lo.",
+      "runNumber" : 1,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Cancel",
+      "zoomCheckSeconds" : 2.4795849580000002,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        757.6,
+        260.5
+      ]
+    },
+    {
+      "answerSeconds" : 3.896156167,
+      "elementLabel" : "plus button",
+      "finalDistance" : 0.41761226035640153,
+      "finalPoint" : [
+        279.12,
+        840.4
+      ],
+      "firstGuess" : [
+        277.92,
+        840.6
+      ],
+      "firstGuessDistance" : 1.235475616918437,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "nayi sheet kaise add karu?",
+      "replyText" : "naye sheet add karne ke liye sheet one ke paas wale plus button pe click karo.",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Add sheet",
+      "zoomCheckSeconds" : 3.474951625,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        279.12,
+        840.4
+      ]
+    },
+    {
+      "answerSeconds" : 1.524356459,
+      "elementLabel" : "zoom slider",
+      "finalDistance" : 55.001454526221394,
+      "finalPoint" : [
+        1252,
+        840.4
+      ],
+      "firstGuess" : [
+        1270.08,
+        839.7
+      ],
+      "firstGuessDistance" : 36.921218831452535,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "zoom thoda badhana hai",
+      "replyText" : "step 1: niche right corner mein zoom slider ko plus button ki taraf drag karo.",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Zoom in",
+      "zoomCheckSeconds" : 3.483693875,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        1252,
+        840.4
+      ]
+    },
+    {
+      "answerSeconds" : 1.736155833,
+      "elementLabel" : "minus button",
+      "finalDistance" : 0.4472135955000596,
+      "finalPoint" : [
+        1196.8,
+        839.5999999999999
+      ],
+      "firstGuess" : [
+        1195.2,
+        839.7
+      ],
+      "firstGuessDistance" : 1.8248287590894137,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "zoom kam karna hai",
+      "replyText" : "neechye right corner mein minus icon pe click karke zoom kam kar sakte ho.",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Zoom out",
+      "zoomCheckSeconds" : 1.585587042,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        1196.8,
+        839.5999999999999
+      ]
+    },
+    {
+      "answerSeconds" : 1.689231792,
+      "elementLabel" : "formula bar",
+      "finalDistance" : 61.14703590526691,
+      "finalPoint" : [
+        143.6,
+        152
+      ],
+      "firstGuess" : [
+        169.92,
+        153
+      ],
+      "firstGuessDistance" : 48.4087430119808,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "column ka total kaise nikalu?",
+      "replyText" : "column ke total ke liye, formula bar mein equals sum type karke brackets ke andar cells ki range select kar lo, jaise B2 se B11.",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:AutoSum",
+      "zoomCheckSeconds" : 1.801497125,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        143.6,
+        152
+      ]
+    },
+    {
+      "answerSeconds" : 1.499754458,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is data ka chart banana hai",
+      "replyText" : "is data ka chart banane ke liye pehle poore table ko select karo, fir upar toolbar mein chart icon pe click karo. [POINT:211,118,chart icon]",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:Insert chart",
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 2.053179834,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "data filter kaise karu?",
+      "replyText" : "data filter karne ke liye upar toolbar mein filter button pe click karo. [POINT:185,119,filter button]",
+      "runNumber" : 1,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:Filter",
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.819172416,
+      "elementLabel" : "Wallpaper",
+      "finalDistance" : 628.4025779705236,
+      "finalPoint" : [
+        878.4,
+        547.1999999999999
+      ],
+      "firstGuess" : [
+        878.4,
+        547.1999999999999
+      ],
+      "firstGuessDistance" : 628.4025779705236,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "wallpaper kaise badlu?",
+      "replyText" : "step 1: left sidebar mein Wallpaper pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "system-settings",
+      "targetElementKey" : "sidebar:Wallpaper",
+      "zoomCheckSeconds" : 2.175413916,
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.88233925,
+      "elementLabel" : "Battery",
+      "finalDistance" : 680.2402646124383,
+      "finalPoint" : [
+        930.24,
+        579.6
+      ],
+      "firstGuess" : [
+        930.24,
+        579.6
+      ],
+      "firstGuessDistance" : 680.2402646124383,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "battery ki health kahan dekhu?",
+      "replyText" : "step 1: sidebar mein sabse niche battery par click karo.",
+      "runNumber" : 2,
+      "screenName" : "system-settings",
+      "targetElementKey" : "sidebar:Battery",
+      "zoomCheckSeconds" : 3.475872667,
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 3.685327917,
+      "elementLabel" : "Language and Region",
+      "finalDistance" : 221.44056448627478,
+      "finalPoint" : [
+        628.56,
+        409.5
+      ],
+      "firstGuess" : [
+        653.76,
+        409.5
+      ],
+      "firstGuessDistance" : 196.24063697409872,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "mac ki language hindi kaise karu?",
+      "replyText" : "step 1: General settings mein Language and Region pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:Language & Region",
+      "zoomCheckSeconds" : 2.236796875,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        628.56,
+        409.5
+      ]
+    },
+    {
+      "answerSeconds" : 1.97805125,
+      "elementLabel" : "Date and Time",
+      "finalDistance" : 148.72756435846048,
+      "finalPoint" : [
+        701.28,
+        463.5
+      ],
+      "firstGuess" : [
+        701.28,
+        463.5
+      ],
+      "firstGuessDistance" : 148.72756435846048,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "date aur time galat hai, kahan theek karu?",
+      "replyText" : "step 1: General settings ke andar Date and Time pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:Date & Time",
+      "zoomCheckSeconds" : 3.188528541,
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.801073083,
+      "elementLabel" : "AirDrop & Handoff",
+      "finalDistance" : 337.4686853620643,
+      "finalPoint" : [
+        512.5600000000001,
+        301.6
+      ],
+      "firstGuess" : [
+        480.96000000000004,
+        306
+      ],
+      "firstGuessDistance" : 369.03999999999996,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "airdrop kahan se on hota hai?",
+      "replyText" : "step 1: General settings mein AirDrop and Handoff pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "system-settings",
+      "targetElementKey" : "row:AirDrop & Handoff",
+      "zoomCheckSeconds" : 3.702343042,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        512.5600000000001,
+        301.6
+      ]
+    },
+    {
+      "answerSeconds" : 2.491397375,
+      "elementLabel" : "bold button",
+      "finalDistance" : 1.4142135623731051,
+      "finalPoint" : [
+        144,
+        113.99999999999999
+      ],
+      "firstGuess" : [
+        148.32,
+        111.6
+      ],
+      "firstGuessDistance" : 4.75209427515911,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is text ko bold kaise karu?",
+      "replyText" : "is text ko bold karne ke liye, pehle ise select karo aur upar toolbar mein B pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Bold",
+      "zoomCheckSeconds" : 1.751141084,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        144,
+        113.99999999999999
+      ]
+    },
+    {
+      "answerSeconds" : 1.803205833,
+      "elementLabel" : "table icon",
+      "finalDistance" : 0.4118252056394933,
+      "finalPoint" : [
+        464.64,
+        114.8
+      ],
+      "firstGuess" : [
+        462.24,
+        115.2
+      ],
+      "firstGuessDistance" : 2.7672368890284673,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "document mein table kaise daalu?",
+      "replyText" : "table dalne ke liye upar toolbar mein table icon pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Insert table",
+      "zoomCheckSeconds" : 2.040669958,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        464.64,
+        114.8
+      ]
+    },
+    {
+      "answerSeconds" : 1.282591459,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "photo insert karni hai",
+      "replyText" : "photo add karne ke liye upar toolbar mein picture wale icon pe click karo. [POINT:297,126,picture icon]",
+      "runNumber" : 2,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Insert photo",
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.8384475839999999,
+      "elementLabel" : "share button",
+      "finalDistance" : 0.8485281374237887,
+      "finalPoint" : [
+        1294.4,
+        115.6
+      ],
+      "firstGuess" : [
+        1294.56,
+        94.5
+      ],
+      "firstGuessDistance" : 20.50472140751978,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ye document share kaise karu?",
+      "replyText" : "document share karne ke liye upar right corner mein share button pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Share",
+      "zoomCheckSeconds" : 2.134120459,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        1294.4,
+        115.6
+      ]
+    },
+    {
+      "answerSeconds" : 2.8957555,
+      "elementLabel" : "numbered list button",
+      "finalDistance" : 0.4118252056394933,
+      "finalPoint" : [
+        344.64,
+        114.8
+      ],
+      "firstGuess" : [
+        303.84,
+        94.5
+      ],
+      "firstGuessDistance" : 45.982557562623704,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "numbered list banani hai",
+      "replyText" : "step 1: upar toolbar mein numbered list icon pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "text-editor",
+      "targetElementKey" : "toolbar:Numbered list",
+      "zoomCheckSeconds" : 1.976919542,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        344.64,
+        114.8
+      ]
+    },
+    {
+      "answerSeconds" : 2.725176209,
+      "elementLabel" : "Forgot password",
+      "finalDistance" : 7.951540202551317,
+      "finalPoint" : [
+        818.0799999999999,
+        439.29999999999995
+      ],
+      "firstGuess" : [
+        823.68,
+        432.9
+      ],
+      "firstGuessDistance" : 6.535529652812326,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "password bhool gaya, ab kya karu?",
+      "replyText" : "koi baat nahi, yahan Forgot password pe click karke reset kar sakte ho.",
+      "runNumber" : 2,
+      "screenName" : "login-page",
+      "targetElementKey" : "link:Forgot password?",
+      "zoomCheckSeconds" : 1.20038975,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        818.0799999999999,
+        439.29999999999995
+      ]
+    },
+    {
+      "answerSeconds" : 2.010034834,
+      "elementLabel" : "Create an account",
+      "finalDistance" : 4.437123093150104,
+      "finalPoint" : [
+        718.9599999999999,
+        647.9
+      ],
+      "firstGuess" : [
+        718.56,
+        683.1
+      ],
+      "firstGuessDistance" : 35.43157995656936,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "naya account kaise banau?",
+      "replyText" : "niche create an account pe click karo, wahan se naya account ban jaega.",
+      "runNumber" : 2,
+      "screenName" : "login-page",
+      "targetElementKey" : "link:Create an account",
+      "zoomCheckSeconds" : 2.043768833,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        718.9599999999999,
+        647.9
+      ]
+    },
+    {
+      "answerSeconds" : 1.502128084,
+      "elementLabel" : "Continue with Google",
+      "finalDistance" : 21.80733821446352,
+      "finalPoint" : [
+        741.6,
+        578
+      ],
+      "firstGuess" : [
+        720,
+        579.6
+      ],
+      "firstGuessDistance" : 1.3999999999999773,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "google se login karna hai",
+      "replyText" : "google se sign in karne ke liye niche wale button pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "login-page",
+      "targetElementKey" : "button:Continue with Google",
+      "zoomCheckSeconds" : 4.472083292,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        741.6,
+        578
+      ]
+    },
+    {
+      "answerSeconds" : 1.505346667,
+      "elementLabel" : "Remember me",
+      "finalDistance" : 48.890529807316426,
+      "finalPoint" : [
+        566.9599999999999,
+        439.7
+      ],
+      "firstGuess" : [
+        718.56,
+        432.9
+      ],
+      "firstGuessDistance" : 102.95549690201139,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "remember me wala tick kahan hai?",
+      "replyText" : "remember me checkbox yahan left side mein hai.",
+      "runNumber" : 2,
+      "screenName" : "login-page",
+      "targetElementKey" : "checkbox:Remember me",
+      "zoomCheckSeconds" : 1.7497475420000002,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        566.9599999999999,
+        439.7
+      ]
+    },
+    {
+      "answerSeconds" : 1.838396709,
+      "elementLabel" : "email field",
+      "finalDistance" : 196.40527895145792,
+      "finalPoint" : [
+        718.56,
+        120.60000000000001
+      ],
+      "firstGuess" : [
+        718.56,
+        120.60000000000001
+      ],
+      "firstGuessDistance" : 196.40527895145792,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "email kahan daalu?",
+      "replyText" : "email address yahan email field mein likh do.",
+      "runNumber" : 2,
+      "screenName" : "login-page",
+      "targetElementKey" : "field:Email",
+      "zoomCheckSeconds" : 5.578938791,
+      "zoomCheckTimedOut" : true,
+      "zoomCheckedPoint" : [
+        693.3599999999999,
+        314.8
+      ]
+    },
+    {
+      "answerSeconds" : 1.808077875,
+      "elementLabel" : "New Folder",
+      "finalDistance" : 81.73061750308293,
+      "finalPoint" : [
+        154.4,
+        64.4
+      ],
+      "firstGuess" : [
+        164.16,
+        63.00000000000001
+      ],
+      "firstGuessDistance" : 71.97658571063403,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "naya folder kaise banau?",
+      "replyText" : "new folder banane ke liye File menu mein jaakar New Folder pe click karo, ya phir command shift aur n ek saath dabao.",
+      "runNumber" : 2,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:New Folder",
+      "zoomCheckSeconds" : 1.5459539169999998,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        154.4,
+        64.4
+      ]
+    },
+    {
+      "answerSeconds" : 4.315312333,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is file ki info kaise dekhu?",
+      "replyText" : "kisi bhi file ka info dekhne ke liye, usko select karke Get Info pe click karo. [POINT:111,180,Get Info]",
+      "runNumber" : 2,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Get Info",
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 1.889197166,
+      "elementLabel" : "Compress",
+      "finalDistance" : 87.33931411775708,
+      "finalPoint" : [
+        148.8,
+        204.70000000000002
+      ],
+      "firstGuess" : [
+        161.28,
+        207.9
+      ],
+      "firstGuessDistance" : 74.87374980131719,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "file ko zip kaise karu?",
+      "replyText" : "file ko zip karne ke liye, pehle usko select karo aur fir file menu mein compress pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Compress",
+      "zoomCheckSeconds" : 4.422952791,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        148.8,
+        204.70000000000002
+      ]
+    },
+    {
+      "answerSeconds" : 1.851406667,
+      "elementLabel" : "Move to Trash",
+      "finalDistance" : 81.38132541620186,
+      "finalPoint" : [
+        154.8,
+        284.9
+      ],
+      "firstGuess" : [
+        164.16,
+        281.7
+      ],
+      "firstGuessDistance" : 71.9702639328233,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ye file delete karni hai",
+      "replyText" : "file delete karne ke liye usko drag karke sidebar mein Move to Trash pe chhod do, ya phir us pe click karke shortcut use kar sakte ho.",
+      "runNumber" : 2,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Move to Trash",
+      "zoomCheckSeconds" : 1.8963319589999998,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        154.8,
+        284.9
+      ]
+    },
+    {
+      "answerSeconds" : 3.821555208,
+      "elementLabel" : "Duplicate",
+      "finalDistance" : 79.89364409715425,
+      "finalPoint" : [
+        156.23999999999998,
+        227.2
+      ],
+      "firstGuess" : [
+        339.84,
+        65.7
+      ],
+      "firstGuessDistance" : 192.60615007525135,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "file ki copy banani hai",
+      "replyText" : "step 1: us file ya folder pe click karke select karo, fir File menu mein jaakar Duplicate pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "finder-file-menu",
+      "targetElementKey" : "menu:Duplicate",
+      "zoomCheckSeconds" : 3.51490625,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        156.23999999999998,
+        227.2
+      ]
+    },
+    {
+      "answerSeconds" : 2.690451458,
+      "elementLabel" : "Don't Save",
+      "finalDistance" : 1.754536975956877,
+      "finalPoint" : [
+        648.72,
+        262.2
+      ],
+      "firstGuess" : [
+        645.12,
+        235.8
+      ],
+      "firstGuessDistance" : 25.668159263959684,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "bina save kiye band karna hai",
+      "replyText" : "agar changes nahi chahiye toh don't save pe click kar do.",
+      "runNumber" : 2,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Don't Save",
+      "zoomCheckSeconds" : 4.065383917,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        648.72,
+        262.2
+      ]
+    },
+    {
+      "answerSeconds" : 2.103420625,
+      "elementLabel" : "Save button",
+      "finalDistance" : 29.847137216155247,
+      "finalPoint" : [
+        851.04,
+        231.3
+      ],
+      "firstGuess" : [
+        851.04,
+        231.3
+      ],
+      "firstGuessDistance" : 29.847137216155247,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "haan save kar do",
+      "replyText" : "agar changes rakhne hain toh Save pe click kar do.",
+      "runNumber" : 2,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Save",
+      "zoomCheckSeconds" : 5.24936925,
+      "zoomCheckTimedOut" : true,
+      "zoomCheckedPoint" : [
+        854.64,
+        261.7
+      ]
+    },
+    {
+      "answerSeconds" : 2.126716833,
+      "elementLabel" : "Cancel button",
+      "finalDistance" : 4.649344039754487,
+      "finalPoint" : [
+        761.9200000000001,
+        258.5
+      ],
+      "firstGuess" : [
+        645.12,
+        234.9
+      ],
+      "firstGuessDistance" : 115.85812185600109,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "ruko, abhi band nahi karna",
+      "replyText" : "agar changes save nahi karne hain toh Don't Save pe click karo, warna Cancel daba do.",
+      "runNumber" : 2,
+      "screenName" : "save-dialog",
+      "targetElementKey" : "button:Cancel",
+      "zoomCheckSeconds" : 2.141303542,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        761.9200000000001,
+        258.5
+      ]
+    },
+    {
+      "answerSeconds" : 2.06132325,
+      "elementLabel" : "plus button",
+      "finalDistance" : 0.41761226035640153,
+      "finalPoint" : [
+        279.12,
+        840.4
+      ],
+      "firstGuess" : [
+        277.92,
+        838.8000000000001
+      ],
+      "firstGuessDistance" : 1.6144348856487838,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : true,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "nayi sheet kaise add karu?",
+      "replyText" : "nayi sheet add karne ke liye sheet one ke paas wale plus button par click karo.",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Add sheet",
+      "zoomCheckSeconds" : 2.311742,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        279.12,
+        840.4
+      ]
+    },
+    {
+      "answerSeconds" : 1.83255575,
+      "elementLabel" : "zoom plus",
+      "finalDistance" : 1.2806248474865414,
+      "finalPoint" : [
+        1306,
+        840.8
+      ],
+      "firstGuess" : [
+        1339.2,
+        839.7
+      ],
+      "firstGuessDistance" : 32.20139748520245,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "zoom thoda badhana hai",
+      "replyText" : "bottom right corner mein zoom slider hai, wahan plus icon pe click karo.",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Zoom in",
+      "zoomCheckSeconds" : 2.112305208,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        1306,
+        840.8
+      ]
+    },
+    {
+      "answerSeconds" : 2.126898958,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "zoom kam karna hai",
+      "replyText" : "zoom kam karne ke liye bottom right corner mein minus button par click karo. [POINT:830,933,minus button]",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "button:Zoom out",
+      "zoomCheckTimedOut" : false
+    },
+    {
+      "answerSeconds" : 2.267548209,
+      "elementLabel" : "sum button",
+      "finalDistance" : 0.6324555320336713,
+      "finalPoint" : [
+        184.4,
+        107.2
+      ],
+      "firstGuess" : [
+        185.76,
+        70.2
+      ],
+      "firstGuessDistance" : 36.807846989466796,
+      "isFinalHit" : true,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "column ka total kaise nikalu?",
+      "replyText" : "column ka total nikalne ke liye top toolbar mein sigma icon pe click karo, fir enter daba do.",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:AutoSum",
+      "zoomCheckSeconds" : 1.631346,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        184.4,
+        107.2
+      ]
+    },
+    {
+      "answerSeconds" : 1.758692791,
+      "elementLabel" : "data cells",
+      "finalDistance" : 125.51562293196811,
+      "finalPoint" : [
+        221.04000000000002,
+        200.3
+      ],
+      "firstGuess" : [
+        246.24,
+        204.3
+      ],
+      "firstGuessDistance" : 113.66629931514443,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "is data ka chart banana hai",
+      "replyText" : "tribute ban banane ke liye pehle poora data select kar lo, row two se lekar row eleven tak.",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:Insert chart",
+      "zoomCheckSeconds" : 4.29152025,
+      "zoomCheckTimedOut" : false,
+      "zoomCheckedPoint" : [
+        221.04000000000002,
+        200.3
+      ]
+    },
+    {
+      "answerSeconds" : 2.310689334,
+      "isFinalHit" : false,
+      "isFirstGuessHit" : false,
+      "modelName" : "gemini-flash-lite-latest",
+      "question" : "data filter kaise karu?",
+      "replyText" : "top toolbar mein jo filter icon hai na, usko click kar ke data filter kar sakte ho. [POINT:185,119,filter button]",
+      "runNumber" : 2,
+      "screenName" : "spreadsheet",
+      "targetElementKey" : "toolbar:Filter",
+      "zoomCheckTimedOut" : false
+    }
+  ],
+  "date" : "2026-09-15T11:24:08Z",
+  "hitMargin" : 6,
+  "modelNames" : [
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
+    "gemini-3.5-flash-lite"
+  ],
+  "pauseSeconds" : 4,
+  "runCount" : 2,
+  "zoomCheckTimeLimitSeconds" : 5
+}
