@@ -85,6 +85,19 @@ struct SettingsView: View {
             Section {
                 Toggle("Show Tiko next to my cursor", isOn: $companionManager.isBuddyVisible)
             }
+
+            Section {
+                HStack {
+                    Text("Something not working? The log shows what Tiko did and how long each step took — never your key, screen or words.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Show log") {
+                        NSWorkspace.shared.activateFileViewerSelecting([TikoLog.fileURL])
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
     }

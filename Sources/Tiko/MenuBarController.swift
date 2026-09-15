@@ -4,6 +4,8 @@ import SwiftUI
 extension Notification.Name {
     /// Posted when the user starts talking to Tiko, so the panel gets out of the way.
     static let tikoDismissPanel = Notification.Name("tikoDismissPanel")
+    /// Posted to open the panel, for example on first launch before setup is done.
+    static let tikoShowPanel = Notification.Name("tikoShowPanel")
     /// Posted to open the Settings window.
     static let tikoOpenSettings = Notification.Name("tikoOpenSettings")
 }
@@ -23,6 +25,7 @@ final class MenuBarController: NSObject {
         configureMenuBarButton()
         configurePanelPopover()
         NotificationCenter.default.addObserver(self, selector: #selector(closePanel), name: .tikoDismissPanel, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showPanel), name: .tikoShowPanel, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(openSettings), name: .tikoOpenSettings, object: nil)
     }
 
@@ -51,18 +54,21 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func togglePanel(_ sender: Any?) {
-        guard let menuBarButton = statusItem.button else { return }
-
         if panelPopover.isShown {
             panelPopover.performClose(sender)
         } else {
-            // Check right away so the panel never opens showing stale permissions.
-            companionManager.refreshPermissions()
-            // An accessory app is never frontmost on its own. Activating it lets
-            // the panel's controls take keyboard input (the API key field).
-            NSApp.activate()
-            panelPopover.show(relativeTo: menuBarButton.bounds, of: menuBarButton, preferredEdge: .minY)
+            showPanel()
         }
+    }
+
+    @objc private func showPanel() {
+        guard let menuBarButton = statusItem.button, !panelPopover.isShown else { return }
+        // Check right away so the panel never opens showing stale permissions.
+        companionManager.refreshPermissions()
+        // An accessory app is never frontmost on its own. Activating it lets
+        // the panel's controls take keyboard input (the API key field).
+        NSApp.activate()
+        panelPopover.show(relativeTo: menuBarButton.bounds, of: menuBarButton, preferredEdge: .minY)
     }
 
     @objc private func closePanel() {

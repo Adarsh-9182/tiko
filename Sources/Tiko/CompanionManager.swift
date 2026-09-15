@@ -89,6 +89,12 @@ final class CompanionManager: ObservableObject {
     /// Shared with Settings so it can show which voice is speaking.
     let buddyVoice = BuddyVoice()
 
+    /// Everything Tiko needs before it can answer: all four permissions and a working key.
+    var isSetUpComplete: Bool {
+        guard permissions.areAllGranted, case .ready = geminiKeyStatus else { return false }
+        return true
+    }
+
     private var settings: TikoSettings
     /// Recent questions and answers, so follow-ups like "aur uske baad?" make sense.
     private var conversationHistory: [ConversationExchange] = []
@@ -151,12 +157,17 @@ final class CompanionManager: ObservableObject {
             }
             .store(in: &preferenceSubscriptions)
 
+        // Checked right away, so the app can tell at launch whether setup is still needed.
+        refreshPermissions()
+        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        TikoLog.write("launched v\(appVersion) · \(Self.describe(permissions)) · key \(keyStatusDescription)")
+
         // macOS doesn't tell an app when the user flips a switch in System
         // Settings, so poll. It's cheap, and the panel updates within a moment.
         permissionPollingTask = Task { [weak self] in
             while !Task.isCancelled {
-                self?.refreshPermissions()
                 try? await Task.sleep(for: .seconds(1.5))
+                self?.refreshPermissions()
             }
         }
         applyBuddyVisibility()
@@ -167,20 +178,24 @@ final class CompanionManager: ObservableObject {
         // Only publish real changes so the panel doesn't redraw every poll.
         if latestSnapshot != permissions {
             permissions = latestSnapshot
+            TikoLog.write("permissions changed · \(Self.describe(latestSnapshot))")
         }
 
         // The shortcut tap can only exist while Accessibility is granted, so
         // start it the moment the user allows it, and drop it if they revoke it.
         if latestSnapshot.isAccessibilityGranted {
             if !pushToTalkShortcutMonitor.isRunning {
-                pushToTalkShortcutMonitor.start()
+                let didStartTap = pushToTalkShortcutMonitor.start()
+                TikoLog.write(didStartTap ? "shortcut tap started" : "shortcut tap refused by macOS")
             }
         } else if pushToTalkShortcutMonitor.isRunning {
             pushToTalkShortcutMonitor.stop()
+            TikoLog.write("shortcut tap stopped: accessibility revoked")
         }
     }
 
     func requestPermission(_ permissionKind: PermissionKind) {
+        TikoLog.write("requesting \(permissionKind.title)")
         PermissionsCenter.request(permissionKind)
         hasRequestedScreenRecording = PermissionsCenter.hasRequestedBefore(.screenRecording)
         refreshPermissions()
@@ -189,6 +204,7 @@ final class CompanionManager: ObservableObject {
     /// Starts a fresh copy of Tiko and quits this one. Needed after granting
     /// Screen Recording, which macOS only applies to a newly launched app.
     func relaunch() {
+        TikoLog.write("relaunching")
         let openConfiguration = NSWorkspace.OpenConfiguration()
         openConfiguration.createsNewApplicationInstance = true
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: openConfiguration) { _, _ in
@@ -212,6 +228,7 @@ final class CompanionManager: ObservableObject {
                 let preferredModelNames = GeminiModelPicker.preferredModelNames(from: availableModelNames)
                 guard let self else { return }
                 guard !preferredModelNames.isEmpty else {
+                    TikoLog.write("key check: no usable model among \(availableModelNames.count)")
                     self.geminiKeyStatus = .failed(message: GeminiClientError.noUsableModel.localizedDescription)
                     return
                 }
@@ -222,7 +239,9 @@ final class CompanionManager: ObservableObject {
                 try updatedSettings.save()
                 self.settings = updatedSettings
                 self.geminiKeyStatus = .ready(modelNames: preferredModelNames)
+                TikoLog.write("key saved · models \(preferredModelNames.joined(separator: ", "))")
             } catch {
+                TikoLog.write("key check failed: \(error.localizedDescription)")
                 self?.geminiKeyStatus = .failed(message: error.localizedDescription)
             }
         }
@@ -236,6 +255,7 @@ final class CompanionManager: ObservableObject {
             try updatedSettings.save()
             settings = updatedSettings
             geminiKeyStatus = .missing
+            TikoLog.write("key removed")
         } catch {
             geminiKeyStatus = .failed(message: "key hata nahi paaye: \(error.localizedDescription)")
         }
@@ -250,6 +270,7 @@ final class CompanionManager: ObservableObject {
     /// Ends the guided tour from the panel, along with the step still on screen.
     func endTour() {
         guard activeTour != nil else { return }
+        TikoLog.write("tour ended from the panel")
         activeTour = nil
         replyTask?.cancel()
         replyTask = nil
@@ -272,6 +293,26 @@ final class CompanionManager: ObservableObject {
     func clearHistory() {
         conversationLog.removeAll()
         try? conversationLog.save()
+        TikoLog.write("history cleared")
+    }
+
+    /// Sends one typed question through the whole answer path — screenshot,
+    /// Gemini, pointing, the bubble and speech — without the microphone. Used by
+    /// `-TikoAskOnLaunch` to check a build end to end.
+    func ask(_ question: String) {
+        TikoLog.write("asking without the microphone")
+        transcriptionTask?.cancel()
+        replyTask?.cancel()
+        buddyVoice.stop()
+        pointingTarget = nil
+        activeTour = nil
+        clearBuddyMessage()
+        lastTranscript = question
+
+        let screenContextTask: Task<ScreenContext?, Never>? = permissions.isScreenRecordingGranted
+            ? Task { await Self.captureScreenContextLogged() }
+            : nil
+        answer(question: question, screenContextTask: screenContextTask, continuingTour: nil)
     }
 
     // MARK: - Keyboard
@@ -279,10 +320,13 @@ final class CompanionManager: ObservableObject {
     private func handlePushToTalkTransition(_ shortcutTransition: PushToTalkShortcutTransition) {
         switch shortcutTransition {
         case .pressed:
+            TikoLog.write("shortcut pressed")
             startListening()
         case .released:
+            TikoLog.write("shortcut released")
             finishListening()
         case .cancelled:
+            TikoLog.write("shortcut cancelled by another key")
             cancelListening()
         case .escapePressed:
             stopEverything()
@@ -299,6 +343,7 @@ final class CompanionManager: ObservableObject {
             || pointingTarget != nil
             || activeTour != nil
         guard isTikoBusy, voiceState != .listening else { return }
+        TikoLog.write("stopped with esc")
 
         transcriptionTask?.cancel()
         transcriptionTask = nil
@@ -327,6 +372,7 @@ final class CompanionManager: ObservableObject {
         NotificationCenter.default.post(name: .tikoDismissPanel, object: nil)
 
         guard permissions.isMicrophoneGranted && permissions.isSpeechRecognitionGranted else {
+            TikoLog.write("can't listen: microphone=\(permissions.isMicrophoneGranted) speech=\(permissions.isSpeechRecognitionGranted)")
             voiceState = .idle
             showBuddyMessage("mic aur speech recognition ki permission chahiye, menu bar mein Tiko kholo")
             return
@@ -342,6 +388,7 @@ final class CompanionManager: ObservableObject {
             voiceState = .listening
             applyBuddyVisibility()
         } catch {
+            TikoLog.write("couldn't start listening: \(error.localizedDescription)")
             speechTranscriber.cancelSession()
             voiceState = .idle
             showBuddyMessage(error.localizedDescription)
@@ -351,17 +398,19 @@ final class CompanionManager: ObservableObject {
     private func finishListening() {
         guard voiceState == .listening else { return }
         microphoneCapture.stop()
-        let wasQuickTap = ContinuousClock.now - listeningStartTime < Self.quickTapLimit
+        let heldDuration = ContinuousClock.now - listeningStartTime
+        let wasQuickTap = heldDuration < Self.quickTapLimit
         voiceState = .transcribing
 
         // Capture the screen the moment the user lets go — that's what they were
         // asking about — while speech recognition finishes in parallel.
         let screenContextTask: Task<ScreenContext?, Never>? = permissions.isScreenRecordingGranted
-            ? Task { try? await ScreenCaptureService.captureScreenContext() }
+            ? Task { await Self.captureScreenContextLogged() }
             : nil
 
         // During a tour, a quick tap means "next step", so there's nothing to transcribe.
         if let activeTour, wasQuickTap {
+            TikoLog.write("quick tap during a tour: next step")
             speechTranscriber.cancelSession()
             continueTour(activeTour, screenContextTask: screenContextTask)
             return
@@ -372,6 +421,9 @@ final class CompanionManager: ObservableObject {
             let finalTranscript = await self.speechTranscriber.finishSession()
             // The user may have pressed the shortcut again, or Esc, while we waited.
             guard !Task.isCancelled, self.voiceState == .transcribing else { return }
+
+            let wordCount = finalTranscript.split(whereSeparator: \.isWhitespace).count
+            TikoLog.write("held \(Self.milliseconds(in: heldDuration)) ms · heard \(wordCount) words")
 
             if let activeTour = self.activeTour,
                finalTranscript.isEmpty || TourCommand.isNextStepRequest(finalTranscript) {
@@ -420,11 +472,15 @@ final class CompanionManager: ObservableObject {
             guard let self else { return }
             do {
                 let screenContext = await screenContextTask?.value
+                TikoLog.write("asking gemini · screens \(screenContext?.screens.count ?? 0) · close-up \(screenContext?.cursorCloseUp != nil) · history \(self.conversationHistory.count)\(continuingTour.map { " · tour step \($0.nextStepNumber)" } ?? "")")
+                let requestStartTime = ContinuousClock.now
                 let reply = try await self.fetchReply(to: question, screenContext: screenContext)
                 guard !Task.isCancelled else { return }
 
                 let (textWithoutTourTag, hasMoreSteps) = TourTag.strip(reply.text)
                 let parsedReply = PointTag.parse(textWithoutTourTag)
+                TikoLog.write("reply from \(reply.modelName) in \(Self.milliseconds(since: requestStartTime)) ms · point \(parsedReply.normalizedPoint != nil ? (parsedReply.elementLabel ?? "unlabelled") : "none") · more steps \(hasMoreSteps)")
+
                 // A reply with more steps starts or continues a tour; one without ends it.
                 let isTourStep = hasMoreSteps || continuingTour != nil
                 let replyText = isTourStep
@@ -486,6 +542,7 @@ final class CompanionManager: ObservableObject {
             } catch {
                 // A cancelled request means the user asked something new or pressed Esc; stay quiet.
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return }
+                TikoLog.write("answer failed: \(error.localizedDescription)")
                 self.voiceState = .idle
                 self.showBuddyMessage(error.localizedDescription)
             }
@@ -506,6 +563,20 @@ final class CompanionManager: ObservableObject {
         )
     }
 
+    /// Captures the screen and records how that went, since a failed capture
+    /// otherwise just looks like Tiko ignoring the screen.
+    private static func captureScreenContextLogged() async -> ScreenContext? {
+        let captureStartTime = ContinuousClock.now
+        do {
+            let screenContext = try await ScreenCaptureService.captureScreenContext()
+            TikoLog.write("captured \(screenContext.screens.count) screen(s) in \(milliseconds(since: captureStartTime)) ms")
+            return screenContext
+        } catch {
+            TikoLog.write("screen capture failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     // MARK: - Pointing
 
     /// Turns the reply's point tag into a spot on a real screen, double-checked on a close-up.
@@ -524,12 +595,19 @@ final class CompanionManager: ObservableObject {
         let firstGuessInDisplay = ScreenCoordinates.point(fromNormalized: normalizedPoint, in: wholeDisplay)
         let elementLabel = parsedReply.elementLabel ?? "yahan"
 
+        let zoomCheckStartTime = ContinuousClock.now
         let zoomCheckedPointInDisplay = await zoomCheckPoint(
             firstGuessInDisplay,
             on: targetScreen,
             elementLabel: elementLabel,
             question: question
         )
+        if let zoomCheckedPointInDisplay {
+            let distanceMoved = Int(hypot(zoomCheckedPointInDisplay.x - firstGuessInDisplay.x, zoomCheckedPointInDisplay.y - firstGuessInDisplay.y))
+            TikoLog.write("zoom check moved the point \(distanceMoved) pt in \(Self.milliseconds(since: zoomCheckStartTime)) ms")
+        } else {
+            TikoLog.write("zoom check kept the first guess after \(Self.milliseconds(since: zoomCheckStartTime)) ms")
+        }
         let finalPointInDisplay = zoomCheckedPointInDisplay ?? firstGuessInDisplay
 
         return PointingTarget(
@@ -615,6 +693,29 @@ final class CompanionManager: ObservableObject {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
+    private static func milliseconds(in duration: Duration) -> Int {
+        Int(duration.components.seconds * 1000) + Int(duration.components.attoseconds / 1_000_000_000_000_000)
+    }
+
+    private static func milliseconds(since startTime: ContinuousClock.Instant) -> Int {
+        milliseconds(in: ContinuousClock.now - startTime)
+    }
+
+    private static func describe(_ permissionSnapshot: PermissionSnapshot) -> String {
+        PermissionKind.allCases
+            .map { permissionKind in "\(permissionKind.title.lowercased()) \(permissionSnapshot.isGranted(permissionKind) ? "yes" : "no")" }
+            .joined(separator: ", ")
+    }
+
+    private var keyStatusDescription: String {
+        switch geminiKeyStatus {
+        case .missing: return "missing"
+        case .checking: return "checking"
+        case .ready(let modelNames): return "ready (\(modelNames.first ?? "no model"))"
+        case .failed: return "failed"
+        }
+    }
+
     // MARK: - Buddy
 
     private func showBuddyMessage(_ text: String, for displayDuration: Duration = .seconds(4)) {
@@ -641,6 +742,7 @@ final class CompanionManager: ObservableObject {
             try? await Task.sleep(for: displayDuration)
             guard !Task.isCancelled else { return }
             if endingTour {
+                TikoLog.write("tour ended: no next step within a minute")
                 self?.activeTour = nil
             }
             self?.clearBuddyMessage()

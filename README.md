@@ -22,7 +22,14 @@ Needs an Apple silicon Mac on macOS 14+ and the Command Line Tools (no Xcode).
 open build/Tiko.app
 ```
 
-The app is ad-hoc signed, so macOS asks for its permissions again after every rebuild.
+macOS ties an app's permissions to its signature. Run `./scripts/create-signing-identity.sh`
+once to create a local self-signed certificate (in its own keychain); every build signed with
+it keeps the same designated requirement, so permissions survive rebuilds. Without it the
+build is ad-hoc signed and macOS asks again each time.
+
+`open build/Tiko.app --args -TikoAskOnLaunch "wifi kahan hai?" -isSpeakingRepliesEnabled NO`
+sends one question through the whole answer path without the microphone. What happened is
+logged to `~/Library/Logs/Tiko/tiko.log` — never the key, screenshots or what was said.
 
 ## Use
 

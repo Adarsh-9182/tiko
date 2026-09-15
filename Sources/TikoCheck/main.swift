@@ -322,6 +322,34 @@ let offScreenTargets = PointingBenchmark.cases.filter { benchmarkCase in
 }
 check(offScreenTargets.isEmpty, "every benchmark target lies fully on its screen")
 
+// MARK: - Log
+
+print("Log")
+let temporaryLogFolderURL = FileManager.default.temporaryDirectory.appendingPathComponent("tiko-log-check-\(UUID().uuidString)")
+let productionLogFileURL = TikoLog.fileURL
+let productionLogSizeLimit = TikoLog.maximumFileSize
+TikoLog.fileURL = temporaryLogFolderURL.appendingPathComponent("tiko.log")
+TikoLog.write("first line")
+TikoLog.write("second line")
+TikoLog.flush()
+let writtenLogLines = (try? String(contentsOf: TikoLog.fileURL, encoding: .utf8))?.split(separator: "\n") ?? []
+check(writtenLogLines.count == 2 && writtenLogLines.last?.hasSuffix(" second line") == true, "log lines are appended in order, each with a timestamp")
+let logFilePermissions = ((try? FileManager.default.attributesOfItem(atPath: TikoLog.fileURL.path))?[.posixPermissions] as? NSNumber)?.intValue
+check(logFilePermissions == 0o600, "log file is readable only by this user")
+TikoLog.maximumFileSize = 2_000
+for lineNumber in 1...200 {
+    TikoLog.write("filler line \(lineNumber)")
+}
+TikoLog.flush()
+let trimmedLog = (try? String(contentsOf: TikoLog.fileURL, encoding: .utf8)) ?? ""
+check(
+    trimmedLog.utf8.count <= 2_000 + 100 && trimmedLog.contains("filler line 200") && !trimmedLog.contains("first line"),
+    "an oversized log drops its oldest lines and keeps the newest"
+)
+TikoLog.fileURL = productionLogFileURL
+TikoLog.maximumFileSize = productionLogSizeLimit
+try? FileManager.default.removeItem(at: temporaryLogFolderURL)
+
 // MARK: - Settings
 
 print("Settings file")

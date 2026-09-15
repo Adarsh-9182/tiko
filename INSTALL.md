@@ -65,9 +65,14 @@ The key is saved only on your Mac, in a file only your user account can read.
 **The shortcut does nothing.** Make sure Accessibility is on for Tiko in System Settings →
 Privacy & Security → Accessibility.
 
-**Permissions stopped working after updating Tiko.** Each build has a new signature, so
-macOS treats it as a different app. In System Settings → Privacy & Security, remove Tiko
-with **−** from Accessibility and Screen Recording, then allow it again from Tiko's panel.
+**Permissions stopped working after updating Tiko.** Releases are signed with the same
+certificate so permissions carry over, but if an update ever asks again: in System Settings →
+Privacy & Security, remove Tiko with **−** from Accessibility and Screen Recording, then allow
+it again from Tiko's panel.
+
+**Anything else.** Tiko → Settings… → General → **Show log** opens a log of what Tiko did
+and how long each step took. It never contains your key, your screen or what you said, so
+it's safe to share when reporting a problem.
 
 **"Gemini ka free quota abhi busy hai".** The free tier limits requests per minute. Wait a
 minute and ask again.
