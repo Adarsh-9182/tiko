@@ -23,6 +23,15 @@ struct CompanionPanelView: View {
 
             Divider()
 
+            Toggle(isOn: $companionManager.isBuddyVisible) {
+                Text("Show Tiko next to my cursor")
+                    .font(.system(size: 12))
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+
+            Divider()
+
             footer
         }
         .padding(16)
