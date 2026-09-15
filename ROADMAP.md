@@ -41,4 +41,4 @@ Beyond fixing those, Tiko adds:
 | 9 | Guided tours | Multi-step point tags; tap the shortcut for the next step | done |
 | 10 | Settings | Hotkey, language, voice, history, copy last answer | done |
 | 11 | Accuracy benchmark | Synthetic screens with known targets; single-pass vs zoom-refined hit rate — latest: single guess 55% → with close-up check 84% ([results](benchmarks/RESULTS.md)) | done |
-| 12 | Distribution | Unsigned zip and install guide; Developer ID signing when budget allows | |
+| 12 | Distribution | Unsigned zip, checksum, app icon and install guide; Developer ID signing and notarization when budget allows | done (unsigned) |

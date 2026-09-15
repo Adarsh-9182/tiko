@@ -10,6 +10,8 @@
 	<string>Tiko</string>
 	<key>CFBundleExecutable</key>
 	<string>Tiko</string>
+	<key>CFBundleIconFile</key>
+	<string>Tiko</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

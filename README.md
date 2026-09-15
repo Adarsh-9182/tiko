@@ -6,9 +6,16 @@ Inspired by [Clicky](https://github.com/farzaa/clicky), rebuilt on a free stack
 (Gemini free tier, Apple on-device speech, macOS system voices) and aiming to do
 the job better.
 
+## Install
+
+Download the zip from [Releases](https://github.com/Adarsh-9182/tiko/releases) and follow
+[INSTALL.md](INSTALL.md) — Tiko isn't signed with a paid Developer ID yet, so the first
+launch needs one extra click in System Settings.
+
 ## Build
 
-Needs macOS 14+ and the Command Line Tools (no Xcode).
+Needs an Apple silicon Mac on macOS 14+ and the Command Line Tools (no Xcode).
+`./scripts/package-release.sh` builds the release zip and its SHA-256 checksum.
 
 ```bash
 ./scripts/build-app.sh
