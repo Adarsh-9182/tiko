@@ -1,0 +1,101 @@
+Rebuilding Clicky, the AI buddy that lives next to your cursor, for zero cost.
+
+Hold a shortcut, ask out loud. It looks at your screen, answers by voice, and flies over to point at the button you need.
+
+Gemini free tier, on-device speech, macOS voices. No Xcode.
+
+Part by part:
+
+---
+
+Part 1 — hearing.
+
+A listen-only keyboard tap watches for ⌃⌥ in any app. It can see keys, never block them.
+
+A third key while you hold it means ⌃⌥→ switching Spaces, not you talking, so recording cancels.
+
+Speech is recognised on-device, in Indian English, for Hinglish.
+
+---
+
+Part 2 — seeing.
+
+The screenshot is taken the moment you let go, in parallel with finishing the transcript. That is the screen you were asking about.
+
+Tiko's own windows are left out, and a sharp close-up around the cursor goes along for "what's this?"
+
+---
+
+Part 3 — pointing.
+
+Gemini ends its reply with a tag like [POINT:88,309:Appearance] on a 0–1000 grid.
+
+A coordinate that comes back slightly off-screen is clamped, not dropped.
+
+Then a 400-point crop around the guess gets checked again before the buddy flies.
+
+---
+
+Part 4 — stopping it.
+
+Clicky's issue tracker has one titled "It doesn't stop once it starts speaking".
+
+In Tiko, Esc stops the voice, the request and the pointing at once. Asking something new cuts the old answer off too.
+
+---
+
+Part 5 — tasks that take several clicks.
+
+It can't list every step up front: step 3's menu item isn't on screen until step 2 opens the menu.
+
+So it gives one step, points at it, and waits. Tap the shortcut or say "next" and it looks at the screen again.
+
+---
+
+Part 6 — measuring instead of hoping.
+
+A benchmark draws 6 Mac screens in code — Settings, a toolbar, a login page, a menu, a dialog, a spreadsheet — and records the exact rectangle of every button.
+
+29 Hinglish questions, asked twice, through the app's own pointing path.
+
+---
+
+First run: every "no point" answer was actually a point.
+
+Gemini wrote [POINT:185,119,filter button] with a comma where the prompt asked for a colon, and the parser silently threw it away.
+
+The same bug was in the app. One benchmark run found it.
+
+---
+
+Second finding: on System Settings the height was right and the x was way off.
+
+The model was measuring on the cursor close-up instead of the full screen.
+
+Labelling the close-up with the part of the screen it shows took the first guess from 55% to 81%.
+
+---
+
+The honest part of that result.
+
+The full path, first guess plus the zoom check, stayed flat: 84% → 83%. The fix moved accuracy into the first guess.
+
+And the spreadsheet screen got worse, 10 → 6 of 12.
+
+That is why it gets measured.
+
+---
+
+Status, honestly:
+
+5,665 lines of Swift, 79 checks, 13 pull requests, one zip.
+
+A typed question has made it through the running app to an answer beside the cursor. But nobody has held the shortcut and asked it something for real yet.
+
+That is next.
+
+---
+
+Code, benchmark screens and every raw result are open:
+
+github.com/Adarsh-9182/tiko
