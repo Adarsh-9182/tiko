@@ -3,28 +3,61 @@
 A buddy that lives next to your cursor on macOS: hold a shortcut, ask out loud,
 and it sees your screen, answers by voice, and points at the thing you need.
 Inspired by [Clicky](https://github.com/farzaa/clicky), rebuilt on a free stack
-(Gemini free tier, Apple on-device speech, macOS system voices).
+(Gemini free tier, Apple on-device speech, macOS system voices) and aiming to do
+the job better.
+
+## Install
+
+Download the zip from [Releases](https://github.com/Adarsh-9182/tiko/releases) and follow
+[INSTALL.md](INSTALL.md) — Tiko isn't signed with a paid Developer ID yet, so the first
+launch needs one extra click in System Settings.
 
 ## Build
 
-Needs macOS 14+ and the Command Line Tools (no Xcode).
+Needs macOS 14+ and the Command Line Tools (no Xcode). `./scripts/build-app.sh --universal`
+builds one app for Apple silicon and Intel; `./scripts/package-release.sh` does that and
+packs the release zip with its SHA-256 checksum.
 
 ```bash
 ./scripts/build-app.sh
 open build/Tiko.app
 ```
 
-The app is ad-hoc signed, so macOS asks for its permissions again after every rebuild.
+macOS ties an app's permissions to its signature. Run `./scripts/create-signing-identity.sh`
+once to create a local self-signed certificate (in its own keychain); every build signed with
+it keeps the same designated requirement, so permissions survive rebuilds. Without it the
+build is ad-hoc signed and macOS asks again each time.
+
+`open build/Tiko.app --args -TikoAskOnLaunch "wifi kahan hai?" -isSpeakingRepliesEnabled NO`
+sends one question through the whole answer path without the microphone. What happened is
+logged to `~/Library/Logs/Tiko/tiko.log` — never the key, screenshots or what was said.
+
+## Use
+
+1. Open the menu bar icon, allow the permissions, and paste a free Gemini API key
+   from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The key is
+   saved only on this Mac, in a file only your user can read.
+2. Hold **⌃ Control + ⌥ Option**, ask your question out loud, and let go.
+3. Tiko answers out loud and points at what you need. Press **Esc** to stop it at
+   any time; replies can be muted from the panel.
+4. For tasks that take several clicks, Tiko shows one step at a time. Do the step,
+   then tap **⌃ Control + ⌥ Option** (or say "next" / "aage" / "ho gaya") and it
+   looks at the screen again for the next one.
+5. **Settings…** in the panel changes the shortcut (including a one-key Right ⌥),
+   the language you speak, which Gemini model answers (automatic picks the fastest),
+   the voice and its speed, and shows your history, which is saved only on this Mac.
+
+## Check
+
+```bash
+swift run TikoCheck          # offline checks of the Gemini client, model choice, settings
+swift run TikoCheck --live   # also asks Gemini a real question using your saved key
+swift run TikoBenchmark      # measures pointing accuracy; writes benchmarks/RESULTS.md
+```
+
+Latest pointing results: [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 ## Roadmap
 
-1. Menu bar app skeleton ← **done**
-2. Permissions (accessibility, screen recording, microphone, speech)
-3. Cursor buddy overlay
-4. Push-to-talk shortcut (⌃ control + ⌥ option)
-5. Voice → text (Apple Speech, en-IN, on-device)
-6. Screenshot + question → Gemini
-7. Pointing at on-screen elements
-8. Speaking the reply
-9. Tests, including a live pointing-accuracy check
-10. Distribution (API proxy, signing)
+See [ROADMAP.md](ROADMAP.md): where Clicky falls short, how Tiko does better,
+and the phase-by-phase plan.
