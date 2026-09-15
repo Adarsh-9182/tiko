@@ -39,7 +39,7 @@ struct PointingTarget: Equatable {
 }
 
 /// Tiko's central state: permissions, the cursor buddy, push-to-talk, speech
-/// recognition, Gemini and pointing. Phase 8 adds speaking the reply.
+/// recognition, Gemini, pointing and speaking replies aloud.
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var permissions = PermissionSnapshot()
@@ -66,10 +66,22 @@ final class CompanionManager: ObservableObject {
         }
     }
 
+    /// Whether replies are read aloud. Saved, so a quiet office stays quiet.
+    @Published var isSpeakingRepliesEnabled = UserDefaults.standard.object(forKey: CompanionManager.speakRepliesDefaultsKey) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(isSpeakingRepliesEnabled, forKey: Self.speakRepliesDefaultsKey)
+            if !isSpeakingRepliesEnabled {
+                buddyVoice.stop()
+            }
+        }
+    }
+
     /// Shared with the overlay so the waveform can follow the microphone level.
     let microphoneCapture = MicrophoneCapture()
     /// Shared with the overlay so it can show the words as they're recognised.
     let speechTranscriber = SpeechTranscriber()
+    /// Shared with the panel so it can show which voice is speaking.
+    let buddyVoice = BuddyVoice()
 
     private var settings: TikoSettings
     /// Recent questions and answers, so follow-ups like "aur uske baad?" make sense.
@@ -83,6 +95,7 @@ final class CompanionManager: ObservableObject {
     private var replyTask: Task<Void, Never>?
 
     private static let buddyVisibleDefaultsKey = "isBuddyVisible"
+    private static let speakRepliesDefaultsKey = "isSpeakingRepliesEnabled"
     private static let hasShownWelcomeBubbleDefaultsKey = "hasShownWelcomeBubble"
     private static let speechLocaleIdentifier = "en-IN"
     private static let maximumRememberedExchanges = 10
@@ -203,7 +216,7 @@ final class CompanionManager: ObservableObject {
         NSPasteboard.general.setString(lastReply.text, forType: .string)
     }
 
-    // MARK: - Push-to-talk
+    // MARK: - Keyboard
 
     private func handlePushToTalkTransition(_ shortcutTransition: PushToTalkShortcutTransition) {
         switch shortcutTransition {
@@ -213,8 +226,32 @@ final class CompanionManager: ObservableObject {
             finishListening()
         case .cancelled:
             cancelListening()
+        case .escapePressed:
+            stopEverything()
         }
     }
+
+    /// Esc: stop speaking, thinking and pointing at once. Unlike Clicky, Tiko
+    /// never has to be sat through once it starts talking.
+    private func stopEverything() {
+        let isTikoBusy = buddyVoice.isSpeaking
+            || voiceState == .transcribing
+            || voiceState == .thinking
+            || buddyMessage != nil
+            || pointingTarget != nil
+        guard isTikoBusy, voiceState != .listening else { return }
+
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+        replyTask?.cancel()
+        replyTask = nil
+        speechTranscriber.cancelSession()
+        buddyVoice.stop()
+        voiceState = .idle
+        clearBuddyMessage()
+    }
+
+    // MARK: - Push-to-talk
 
     private func startListening() {
         guard voiceState != .listening else { return }
@@ -223,6 +260,7 @@ final class CompanionManager: ObservableObject {
         transcriptionTask = nil
         replyTask?.cancel()
         replyTask = nil
+        buddyVoice.stop()
         pointingTarget = nil
         // Get the panel out of the way so it doesn't cover what the user is asking about.
         NotificationCenter.default.post(name: .tikoDismissPanel, object: nil)
@@ -262,7 +300,7 @@ final class CompanionManager: ObservableObject {
         transcriptionTask = Task { [weak self] in
             guard let self else { return }
             let finalTranscript = await self.speechTranscriber.finishSession()
-            // The user may have pressed the shortcut again while we waited.
+            // The user may have pressed the shortcut again, or Esc, while we waited.
             guard !Task.isCancelled, self.voiceState == .transcribing else { return }
 
             guard !finalTranscript.isEmpty else {
@@ -303,22 +341,33 @@ final class CompanionManager: ObservableObject {
                 self.lastPointingTarget = nil
                 self.voiceState = .idle
 
-                // Show the words right away; the buddy flies over once the point is double-checked.
+                // Show the words and start speaking right away; the buddy flies over
+                // once the point is double-checked. The bubble stays until both are done.
                 let replyMessage = BuddyMessage(text: displayText, isReply: true)
-                self.showBuddyMessage(replyMessage, for: Self.readingDuration(for: displayText))
+                self.showBuddyMessage(replyMessage, for: nil)
+                let replyShownTime = ContinuousClock.now
+                let speakingTask: Task<Void, Never>? = self.isSpeakingRepliesEnabled
+                    ? Task { await self.buddyVoice.speak(displayText) }
+                    : nil
 
-                guard let screenContext,
-                      let resolvedTarget = await self.resolvePointingTarget(for: parsedReply, question: transcript, screenContext: screenContext) else {
-                    return
+                if let screenContext,
+                   let resolvedTarget = await self.resolvePointingTarget(for: parsedReply, question: transcript, screenContext: screenContext) {
+                    // The user may have asked something new, or pressed Esc, meanwhile.
+                    guard !Task.isCancelled, self.buddyMessage == replyMessage else { return }
+                    self.pointingTarget = resolvedTarget
+                    self.lastPointingTarget = resolvedTarget
                 }
-                // The user may have asked something new while the point was being checked.
+
+                await speakingTask?.value
                 guard !Task.isCancelled, self.buddyMessage == replyMessage else { return }
-                self.pointingTarget = resolvedTarget
-                self.lastPointingTarget = resolvedTarget
-                // Restart the reading time so the reply stays up for the whole visit.
-                self.showBuddyMessage(replyMessage, for: Self.readingDuration(for: displayText) + .seconds(1.5))
+
+                // Keep the reply up for at least its reading time, and linger a moment
+                // after the last word — longer when the buddy has only just landed.
+                let remainingReadingTime = Self.readingDuration(for: displayText) - (ContinuousClock.now - replyShownTime)
+                let lingerTime: Duration = self.pointingTarget != nil ? .seconds(3) : .seconds(1.5)
+                self.scheduleBuddyMessageDismissal(after: max(remainingReadingTime, lingerTime))
             } catch {
-                // A cancelled request means the user asked something new; stay quiet.
+                // A cancelled request means the user asked something new or pressed Esc; stay quiet.
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return }
                 self.voiceState = .idle
                 self.showBuddyMessage(error.localizedDescription)
@@ -449,10 +498,19 @@ final class CompanionManager: ObservableObject {
         showBuddyMessage(BuddyMessage(text: text, isReply: false), for: displayDuration)
     }
 
-    private func showBuddyMessage(_ message: BuddyMessage, for displayDuration: Duration) {
+    /// - Parameter displayDuration: nil keeps the message up until a dismissal is scheduled.
+    private func showBuddyMessage(_ message: BuddyMessage, for displayDuration: Duration?) {
         buddyMessage = message
         applyBuddyVisibility()
 
+        buddyMessageDismissTask?.cancel()
+        buddyMessageDismissTask = nil
+        if let displayDuration {
+            scheduleBuddyMessageDismissal(after: displayDuration)
+        }
+    }
+
+    private func scheduleBuddyMessageDismissal(after displayDuration: Duration) {
         buddyMessageDismissTask?.cancel()
         buddyMessageDismissTask = Task { [weak self] in
             try? await Task.sleep(for: displayDuration)

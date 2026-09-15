@@ -23,6 +23,8 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
    from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The key is
    saved only on this Mac, in a file only your user can read.
 2. Hold **⌃ Control + ⌥ Option**, ask your question out loud, and let go.
+3. Tiko answers out loud and points at what you need. Press **Esc** to stop it at
+   any time; replies can be muted from the panel.
 
 ## Check
 

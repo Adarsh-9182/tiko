@@ -78,6 +78,27 @@ struct CompanionPanelView: View {
             .toggleStyle(.switch)
             .controlSize(.small)
 
+            Toggle(isOn: $companionManager.isSpeakingRepliesEnabled) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Speak replies")
+                        .font(.system(size: 12))
+                    if let voice = companionManager.buddyVoice.voice {
+                        Text("Voice: \(voice.name) (\(voice.language))")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+
+            if companionManager.isSpeakingRepliesEnabled && !companionManager.buddyVoice.isUsingHighQualityVoice {
+                Text("For a more natural voice, download an English (India) voice for free: System Settings → Accessibility → Spoken Content → System voice → Manage Voices.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Divider()
 
             footer
@@ -188,12 +209,19 @@ struct CompanionPanelView: View {
     }
 
     private var pushToTalkHint: some View {
-        HStack(spacing: 6) {
-            Text("Hold")
-            KeyCap(symbol: "⌃", name: "control")
-            Text("+")
-            KeyCap(symbol: "⌥", name: "option")
-            Text("and ask")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("Hold")
+                KeyCap(symbol: "⌃", name: "control")
+                Text("+")
+                KeyCap(symbol: "⌥", name: "option")
+                Text("and ask")
+            }
+            HStack(spacing: 6) {
+                Text("Press")
+                KeyCap(symbol: "⎋", name: "esc")
+                Text("to stop Tiko")
+            }
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)

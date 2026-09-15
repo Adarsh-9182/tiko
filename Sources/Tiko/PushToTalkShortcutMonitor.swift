@@ -9,12 +9,16 @@ enum PushToTalkShortcutTransition {
     /// A third key was pressed while holding the shortcut, so this was an
     /// ordinary keyboard shortcut rather than the user talking to Tiko.
     case cancelled
+    /// Esc on its own: the user wants Tiko to stop.
+    case escapePressed
 }
 
-/// Watches for ⌃ Control + ⌥ Option being held together, in any app.
+/// Watches the keyboard, in any app, for ⌃ Control + ⌥ Option being held
+/// together and for Esc.
 ///
 /// Uses a listen-only CGEvent tap: it sees keyboard events system-wide (which
-/// needs the Accessibility permission) but can never block or change them.
+/// needs the Accessibility permission) but can never block or change them, so
+/// Esc still reaches the app the user is in.
 final class PushToTalkShortcutMonitor {
     /// Called on the main thread, because the tap is attached to the main run loop.
     var onTransition: ((PushToTalkShortcutTransition) -> Void)?
@@ -22,6 +26,8 @@ final class PushToTalkShortcutMonitor {
     private(set) var isShortcutHeld = false
     private var eventTap: CFMachPort?
     private var eventTapRunLoopSource: CFRunLoopSource?
+
+    private static let escapeKeyCode: Int64 = 53
 
     var isRunning: Bool { eventTap != nil }
 
@@ -103,11 +109,13 @@ final class PushToTalkShortcutMonitor {
             }
 
         case .keyDown:
-            // ⌃⌥ plus another key is an ordinary shortcut (switching Spaces, for
-            // example), not the user talking to Tiko.
             if isShortcutHeld {
+                // ⌃⌥ plus another key is an ordinary shortcut (switching Spaces, for
+                // example), not the user talking to Tiko.
                 isShortcutHeld = false
                 onTransition?(.cancelled)
+            } else if event.getIntegerValueField(.keyboardEventKeycode) == Self.escapeKeyCode {
+                onTransition?(.escapePressed)
             }
 
         default:

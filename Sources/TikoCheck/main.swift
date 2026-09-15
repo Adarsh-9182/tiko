@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 import TikoCore
 
@@ -138,6 +139,74 @@ check(rightwardFlight.pose(afterSeconds: rightwardFlight.duration).position == C
 check(rightwardFlight.pose(afterSeconds: 0.5).position.y < 500, "arcs upward on the way")
 check(rightwardFlight.pose(afterSeconds: 0.5).scale > 1.25, "swells mid-flight")
 check(abs(rightwardFlight.pose(afterSeconds: 0).rotationDegrees - 90) < 30, "faces its direction of travel")
+
+// MARK: - Speech
+
+/// Lets exactly one of two racing callbacks resume a continuation.
+final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var hasResumed = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !hasResumed else { return false }
+        hasResumed = true
+        return true
+    }
+}
+
+/// Renders speech into memory instead of through the speakers, so the check is silent.
+/// Returns 0 if no audio arrives within 15 seconds.
+func synthesizedAudioFrameCount(of text: String, voice: AVSpeechSynthesisVoice) async -> Int {
+    let speechSynthesizer = AVSpeechSynthesizer()
+    let utterance = AVSpeechUtterance(string: text)
+    utterance.voice = voice
+    let resumeOnce = ResumeOnce()
+
+    let audioFrameCount = await withCheckedContinuation { continuation in
+        var totalFrameCount = 0
+        speechSynthesizer.write(utterance) { audioBuffer in
+            guard let pcmBuffer = audioBuffer as? AVAudioPCMBuffer else { return }
+            if pcmBuffer.frameLength == 0 {
+                // An empty buffer marks the end of the utterance.
+                if resumeOnce.claim() {
+                    continuation.resume(returning: totalFrameCount)
+                }
+            } else {
+                totalFrameCount += Int(pcmBuffer.frameLength)
+            }
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(15))
+            if resumeOnce.claim() {
+                continuation.resume(returning: 0)
+            }
+        }
+    }
+    // Keep the synthesizer alive until rendering has finished.
+    withExtendedLifetime(speechSynthesizer) {}
+    return audioFrameCount
+}
+
+print("Speech")
+check(
+    SpokenText.prepare("**Appearance** pe click karo, `file_name.txt` kholo") == "Appearance pe click karo, file name.txt kholo",
+    "formatting symbols aren't read aloud"
+)
+check(
+    SpokenText.prepare("docs yahan hain: https://example.com/docs dekh lo") == "docs yahan hain: link dekh lo",
+    "a web address is said as \"link\""
+)
+if let chosenVoice = SpeechVoicePicker.bestVoice() {
+    let qualityName = chosenVoice.quality == .premium ? "premium" : chosenVoice.quality == .enhanced ? "enhanced" : "basic"
+    print("  voice on this Mac: \(chosenVoice.name), \(chosenVoice.language), \(qualityName) quality")
+    check(!chosenVoice.voiceTraits.contains(.isNoveltyVoice), "never picks a novelty voice")
+    let audioFrameCount = await synthesizedAudioFrameCount(of: "Appearance pe click karo, wahan dark mode mil jayega.", voice: chosenVoice)
+    check(audioFrameCount > 0, "the voice turns a Hinglish reply into audio (\(audioFrameCount) frames, rendered silently)")
+} else {
+    check(false, "the Mac has a speech voice installed")
+}
 
 // MARK: - Settings
 
