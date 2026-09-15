@@ -10,6 +10,8 @@
 	<string>Tiko</string>
 	<key>CFBundleExecutable</key>
 	<string>Tiko</string>
+	<key>CFBundleIconFile</key>
+	<string>Tiko</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,5 +25,10 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<!-- Shown in the system prompts. macOS crashes the app on request if these are missing. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tiko listens while you hold the push-to-talk shortcut, so it can hear your question.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Tiko turns your spoken question into text on this Mac before answering it.</string>
 </dict>
 </plist>
