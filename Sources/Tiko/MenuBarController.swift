@@ -1,16 +1,24 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    /// Posted when the user starts talking to Tiko, so the panel gets out of the way.
+    static let tikoDismissPanel = Notification.Name("tikoDismissPanel")
+}
+
 /// Owns the menu bar icon and the panel that drops down from it.
 @MainActor
 final class MenuBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let panelPopover = NSPopover()
+    private let companionManager: CompanionManager
 
-    override init() {
+    init(companionManager: CompanionManager) {
+        self.companionManager = companionManager
         super.init()
         configureMenuBarButton()
         configurePanelPopover()
+        NotificationCenter.default.addObserver(self, selector: #selector(closePanel), name: .tikoDismissPanel, object: nil)
     }
 
     private func configureMenuBarButton() {
@@ -25,7 +33,7 @@ final class MenuBarController: NSObject {
     }
 
     private func configurePanelPopover() {
-        let panelHostingController = NSHostingController(rootView: CompanionPanelView())
+        let panelHostingController = NSHostingController(rootView: CompanionPanelView(companionManager: companionManager))
         // Let the SwiftUI view decide the panel's size instead of hardcoding it here.
         panelHostingController.sizingOptions = .preferredContentSize
         panelPopover.contentViewController = panelHostingController
@@ -40,10 +48,17 @@ final class MenuBarController: NSObject {
         if panelPopover.isShown {
             panelPopover.performClose(sender)
         } else {
+            // Check right away so the panel never opens showing stale permissions.
+            companionManager.refreshPermissions()
             // An accessory app is never frontmost on its own. Activating it lets
             // the panel's controls take keyboard input (the API key field, later).
             NSApp.activate()
             panelPopover.show(relativeTo: menuBarButton.bounds, of: menuBarButton, preferredEdge: .minY)
         }
+    }
+
+    @objc private func closePanel() {
+        guard panelPopover.isShown else { return }
+        panelPopover.performClose(nil)
     }
 }
