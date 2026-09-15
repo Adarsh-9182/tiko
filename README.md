@@ -19,7 +19,17 @@ The app is ad-hoc signed, so macOS asks for its permissions again after every re
 
 ## Use
 
-Hold **⌃ Control + ⌥ Option** and talk. Open the menu bar icon for permissions and settings.
+1. Open the menu bar icon, allow the permissions, and paste a free Gemini API key
+   from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The key is
+   saved only on this Mac, in a file only your user can read.
+2. Hold **⌃ Control + ⌥ Option**, ask your question out loud, and let go.
+
+## Check
+
+```bash
+swift run TikoCheck          # offline checks of the Gemini client, model choice, settings
+swift run TikoCheck --live   # also asks Gemini a real question using your saved key
+```
 
 ## Roadmap
 

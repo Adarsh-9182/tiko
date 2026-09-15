@@ -108,6 +108,15 @@ struct BuddyOverlayView: View {
     /// never covers what the user is about to click.
     private static let offsetFromMousePointer = CGSize(width: 28, height: 24)
 
+    /// Keeps bubbles this far from the screen's edges.
+    private static let screenEdgeMargin: CGFloat = 8
+
+    private struct VisibleBubble {
+        let text: String
+        let isReply: Bool
+        let opacity: Double
+    }
+
     private var isCursorOnThisScreen: Bool {
         screenFrame.contains(cursorTracker.mouseLocation)
     }
@@ -124,19 +133,22 @@ struct BuddyOverlayView: View {
 
     /// While the user talks the bubble shows what Tiko hears; otherwise a
     /// message from Tiko wins over the welcome bubble.
-    private var visibleBubbleText: String? {
+    private var visibleBubble: VisibleBubble? {
         if companionManager.voiceState == .listening {
-            return speechTranscriber.liveTranscript.isEmpty ? nil : speechTranscriber.liveTranscript
+            let liveTranscript = speechTranscriber.liveTranscript
+            return liveTranscript.isEmpty ? nil : VisibleBubble(text: liveTranscript, isReply: false, opacity: 1)
         }
         if let buddyMessage = companionManager.buddyMessage {
-            return buddyMessage
+            return VisibleBubble(text: buddyMessage.text, isReply: buddyMessage.isReply, opacity: 1)
         }
-        return welcomeBubbleText.isEmpty ? nil : welcomeBubbleText
+        if !welcomeBubbleText.isEmpty {
+            return VisibleBubble(text: welcomeBubbleText, isReply: false, opacity: welcomeBubbleOpacity)
+        }
+        return nil
     }
 
-    private var visibleBubbleOpacity: Double {
-        let isShowingLiveOrMessage = companionManager.voiceState == .listening || companionManager.buddyMessage != nil
-        return isShowingLiveOrMessage ? 1 : welcomeBubbleOpacity
+    private var isWorkingOnAnswer: Bool {
+        companionManager.voiceState == .transcribing || companionManager.voiceState == .thinking
     }
 
     var body: some View {
@@ -157,23 +169,14 @@ struct BuddyOverlayView: View {
                     .transition(.opacity)
             }
 
-            if isCursorOnThisScreen && companionManager.voiceState == .transcribing {
+            if isCursorOnThisScreen && isWorkingOnAnswer {
                 BuddySpinnerView()
                     .position(buddyPosition)
                     .transition(.opacity)
             }
 
-            if isCursorOnThisScreen, let visibleBubbleText {
-                // A 1×1 anchor at the buddy lets the bubble size itself to its
-                // text and hang off the buddy's side, instead of being centred on it.
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .overlay(alignment: .topLeading) {
-                        BuddySpeechBubble(text: visibleBubbleText)
-                            .offset(x: 14, y: 8)
-                    }
-                    .position(buddyPosition)
-                    .opacity(visibleBubbleOpacity)
+            if isCursorOnThisScreen, let visibleBubble {
+                bubble(visibleBubble)
             }
         }
         .frame(width: screenFrame.width, height: screenFrame.height)
@@ -189,6 +192,33 @@ struct BuddyOverlayView: View {
                 playWelcomeBubble()
             }
         }
+    }
+
+    /// Hangs the bubble off the buddy's side — flipped left or upward when the
+    /// buddy is close to the screen's right or bottom edge, so it stays readable.
+    private func bubble(_ visibleBubble: VisibleBubble) -> some View {
+        let bubbleWidth = BuddySpeechBubble.maximumWidth(isReply: visibleBubble.isReply)
+        let roughBubbleHeight: CGFloat = visibleBubble.isReply ? 170 : 70
+        let opensLeftward = buddyPosition.x + 14 + bubbleWidth > screenFrame.width - Self.screenEdgeMargin
+        let opensUpward = buddyPosition.y + 8 + roughBubbleHeight > screenFrame.height - Self.screenEdgeMargin
+
+        // A 1×1 anchor at the buddy lets the bubble size itself to its text and
+        // grow away from the buddy, instead of being centred on it.
+        return Color.clear
+            .frame(width: 1, height: 1)
+            .overlay(alignment: Alignment(
+                horizontal: opensLeftward ? .trailing : .leading,
+                vertical: opensUpward ? .bottom : .top
+            )) {
+                BuddySpeechBubble(
+                    text: visibleBubble.text,
+                    isReply: visibleBubble.isReply,
+                    hugsTrailingEdge: opensLeftward
+                )
+                .offset(x: opensLeftward ? -14 : 14, y: opensUpward ? -14 : 8)
+            }
+            .position(buddyPosition)
+            .opacity(visibleBubble.opacity)
     }
 
     /// Types the welcome message out one character at a time, holds it, then fades it away.
@@ -269,28 +299,33 @@ struct BuddySpinnerView: View {
 /// The small orange speech bubble the buddy talks through.
 struct BuddySpeechBubble: View {
     let text: String
+    /// Replies get more room and cut off at their end; live transcripts and
+    /// notes stay compact and keep their newest words visible.
+    let isReply: Bool
+    /// True when the bubble opens to the left of the buddy.
+    let hugsTrailingEdge: Bool
 
-    /// Long text wraps at this width instead of running across the screen.
-    private static let maximumWidth: CGFloat = 280
+    static func maximumWidth(isReply: Bool) -> CGFloat {
+        isReply ? 320 : 280
+    }
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .medium))
+            .font(.system(size: isReply ? 12 : 11, weight: .medium))
             .foregroundStyle(.white)
-            // Long live transcripts keep their newest words visible.
-            .lineLimit(4)
-            .truncationMode(.head)
+            .lineLimit(isReply ? 10 : 4)
+            .truncationMode(isReply ? .tail : .head)
             // Wrap to the available width, but always take the height the lines need.
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, isReply ? 10 : 8)
+            .padding(.vertical, isReply ? 6 : 4)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: isReply ? 8 : 6, style: .continuous)
                     .fill(tikoAccentColor)
                     .shadow(color: tikoAccentColor.opacity(0.5), radius: 6)
             )
             // The anchor proposes 1×1; this gives the text real room to lay out in,
             // while short text still hugs its own width.
-            .frame(width: Self.maximumWidth, alignment: .leading)
+            .frame(width: Self.maximumWidth(isReply: isReply), alignment: hugsTrailingEdge ? .trailing : .leading)
     }
 }

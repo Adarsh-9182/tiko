@@ -5,6 +5,11 @@ import SwiftUI
 struct CompanionPanelView: View {
     @ObservedObject var companionManager: CompanionManager
 
+    @State private var enteredGeminiAPIKey = ""
+    @State private var isReplacingGeminiKey = false
+
+    private static let freeGeminiKeyURL = URL(string: "https://aistudio.google.com/apikey")!
+
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
@@ -23,6 +28,10 @@ struct CompanionPanelView: View {
 
             Divider()
 
+            geminiKeySection
+
+            Divider()
+
             pushToTalkHint
 
             if let lastTranscript = companionManager.lastTranscript {
@@ -31,6 +40,26 @@ struct CompanionPanelView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Text(lastTranscript)
+                        .font(.system(size: 12))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if let lastReply = companionManager.lastReply {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Tiko said")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Copy") {
+                            companionManager.copyLastReply()
+                        }
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
+                    }
+                    Text(lastReply.text)
                         .font(.system(size: 12))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -49,7 +78,14 @@ struct CompanionPanelView: View {
             footer
         }
         .padding(16)
-        .frame(width: 320)
+        .frame(width: 340)
+        .onChange(of: companionManager.geminiKeyStatus) { _, newKeyStatus in
+            // Once a key checks out, clear the field so the key isn't left sitting in it.
+            if case .ready = newKeyStatus {
+                enteredGeminiAPIKey = ""
+                isReplacingGeminiKey = false
+            }
+        }
     }
 
     private var header: some View {
@@ -74,13 +110,85 @@ struct CompanionPanelView: View {
         }
     }
 
+    @ViewBuilder
+    private var geminiKeySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Gemini API key")
+                .font(.system(size: 12, weight: .semibold))
+
+            if case .ready(let modelNames) = companionManager.geminiKeyStatus, !isReplacingGeminiKey {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.green)
+                    Text("Saved · \(modelNames.first ?? "")")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    Button("Change") {
+                        isReplacingGeminiKey = true
+                    }
+                    .controlSize(.small)
+                    Button("Remove") {
+                        companionManager.removeGeminiAPIKey()
+                    }
+                    .controlSize(.small)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    SecureField("Paste your key", text: $enteredGeminiAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12))
+                        .onSubmit(saveEnteredGeminiAPIKey)
+                    Button("Save", action: saveEnteredGeminiAPIKey)
+                        .controlSize(.small)
+                        .disabled(isSaveKeyButtonDisabled)
+                }
+
+                switch companionManager.geminiKeyStatus {
+                case .checking:
+                    Text("Checking the key…")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                case .failed(let message):
+                    Text(message)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .missing, .ready:
+                    EmptyView()
+                }
+
+                HStack(spacing: 4) {
+                    Text("Free key:")
+                    Link("aistudio.google.com/apikey", destination: Self.freeGeminiKeyURL)
+                    Text("· stays on this Mac")
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var isSaveKeyButtonDisabled: Bool {
+        enteredGeminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || companionManager.geminiKeyStatus == .checking
+    }
+
+    private func saveEnteredGeminiAPIKey() {
+        guard !isSaveKeyButtonDisabled else { return }
+        companionManager.saveGeminiAPIKey(enteredGeminiAPIKey)
+    }
+
     private var pushToTalkHint: some View {
         HStack(spacing: 6) {
             Text("Hold")
             KeyCap(symbol: "⌃", name: "control")
             Text("+")
             KeyCap(symbol: "⌥", name: "option")
-            Text("and talk")
+            Text("and ask")
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)
