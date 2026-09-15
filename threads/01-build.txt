@@ -88,9 +88,9 @@ That is why it gets measured.
 
 Status, honestly:
 
-5,437 lines of Swift, 76 checks, 12 pull requests, one unsigned zip.
+5,665 lines of Swift, 79 checks, 13 pull requests, one zip.
 
-And nobody has used it end to end yet. Every part above was checked on its own; nobody has held the shortcut and asked it something for real.
+A typed question has made it through the running app to an answer beside the cursor. But nobody has held the shortcut and asked it something for real yet.
 
 That is next.
 
