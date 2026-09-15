@@ -234,7 +234,7 @@ struct CompanionPanelView: View {
                 HStack(spacing: 4) {
                     Text("Free key:")
                     Link("aistudio.google.com/apikey", destination: Self.freeGeminiKeyURL)
-                    Text("· stays on this Mac")
+                    Text("· kept in your keychain")
                 }
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)

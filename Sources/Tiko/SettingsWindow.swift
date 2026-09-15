@@ -16,7 +16,7 @@ final class SettingsWindowController {
     func showSettingsWindow() {
         if settingsWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 540, height: 480),
+                contentRect: NSRect(x: 0, y: 0, width: 540, height: 620),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
@@ -57,7 +57,7 @@ struct SettingsView: View {
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
         }
         .padding(16)
-        .frame(width: 540, height: 480)
+        .frame(width: 540, height: 620)
     }
 
     // MARK: - General

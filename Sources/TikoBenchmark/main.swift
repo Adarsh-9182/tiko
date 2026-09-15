@@ -419,7 +419,8 @@ for screenName in PointingBenchmark.screenNames {
 
 let apiKey = TikoSettings.load().resolvedGeminiAPIKey
 guard !apiKey.isEmpty else {
-    print("No Gemini key: set GEMINI_API_KEY or save a key in Tiko's panel.")
+    // Tiko keeps its key in the keychain, which a command-line tool can't read without macOS asking.
+    print("No Gemini key: run with GEMINI_API_KEY=your-key (Tiko's own key is in the keychain).")
     exit(1)
 }
 

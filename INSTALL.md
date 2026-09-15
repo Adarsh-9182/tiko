@@ -51,7 +51,8 @@ that permission to a freshly opened app.
    fastest model it can use. With a paid key or more quota, **Settings… → Answers from**
    picks a stronger flash or pro model; if it's busy, Tiko falls back to the fast ones.
 
-The key is saved only on your Mac, in a file only your user account can read.
+The key is saved only on your Mac, in your login keychain, where other apps can't read it
+without macOS asking you. A key saved by Tiko 0.1 moves there by itself on first launch.
 
 ## 5. Ask something
 

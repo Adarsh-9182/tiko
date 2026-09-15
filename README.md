@@ -36,7 +36,7 @@ logged to `~/Library/Logs/Tiko/tiko.log` — never the key, screenshots or what 
 
 1. Open the menu bar icon, allow the permissions, and paste a free Gemini API key
    from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The key is
-   saved only on this Mac, in a file only your user can read.
+   saved only on this Mac, in your keychain.
 2. Hold **⌃ Control + ⌥ Option**, ask your question out loud, and let go.
 3. Tiko answers out loud and points at what you need. Press **Esc** to stop it at
    any time; replies can be muted from the panel.

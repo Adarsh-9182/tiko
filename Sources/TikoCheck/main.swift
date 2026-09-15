@@ -418,16 +418,56 @@ try? FileManager.default.removeItem(at: temporaryLogFolderURL)
 print("Settings file")
 let temporarySettingsFolderURL = FileManager.default.temporaryDirectory.appendingPathComponent("tiko-check-\(UUID().uuidString)")
 let temporarySettingsFileURL = temporarySettingsFolderURL.appendingPathComponent("settings.json")
-let settingsToSave = TikoSettings(geminiAPIKey: "test-key", geminiModelNames: ["gemini-flash-lite-latest"])
+let settingsToSave = TikoSettings(geminiAPIKey: "test-key", geminiModelNames: ["gemini-flash-lite-latest"], chosenModelName: "gemini-pro-latest")
 do {
     try settingsToSave.save(to: temporarySettingsFileURL)
-    check(TikoSettings.load(from: temporarySettingsFileURL) == settingsToSave, "settings survive a save and load")
+    var settingsExpectedFromFile = settingsToSave
+    settingsExpectedFromFile.geminiAPIKey = ""
+    check(TikoSettings.load(from: temporarySettingsFileURL) == settingsExpectedFromFile, "model choices survive a save and load")
+    let savedFileText = try String(contentsOf: temporarySettingsFileURL, encoding: .utf8)
+    check(!savedFileText.contains("test-key") && !savedFileText.contains("geminiAPIKey"), "the key is never written to the settings file")
     let fileAttributes = try FileManager.default.attributesOfItem(atPath: temporarySettingsFileURL.path)
     let filePermissions = (fileAttributes[.posixPermissions] as? NSNumber)?.intValue
     check(filePermissions == 0o600, "settings file is readable only by this user")
 } catch {
     check(false, "saving settings failed: \(error)")
 }
+
+print("Keychain")
+// A throwaway item, so the real key is never touched.
+let checkKeyStore = KeychainPasswordStore(service: "com.adarshbhardwaj.tiko.check", account: "check-\(UUID().uuidString)")
+do {
+    try checkKeyStore.save("first-key")
+    try checkKeyStore.save("second-key")
+    check(checkKeyStore.load() == "second-key", "a saved key reads back, and saving again replaces it")
+
+    let oldSettingsFileURL = temporarySettingsFolderURL.appendingPathComponent("settings-from-0.1.json")
+    try PrivateFile.write(Data(#"{"geminiAPIKey":"key-from-0.1","geminiModelNames":["gemini-flash-lite-latest"]}"#.utf8), to: oldSettingsFileURL)
+    let (migratedSettings, keyMigration) = TikoSettings.loadMovingKeyToKeychain(from: oldSettingsFileURL, keyStore: checkKeyStore)
+    let fileTextAfterMigration = (try? String(contentsOf: oldSettingsFileURL, encoding: .utf8)) ?? ""
+    check(
+        keyMigration == .movedToKeychain
+            && migratedSettings.geminiAPIKey == "key-from-0.1"
+            && checkKeyStore.load() == "key-from-0.1"
+            && !fileTextAfterMigration.contains("key-from-0.1")
+            && fileTextAfterMigration.contains("gemini-flash-lite-latest"),
+        "a key in Tiko 0.1's settings file moves into the keychain, and out of the file"
+    )
+
+    let (reloadedSettings, secondKeyMigration) = TikoSettings.loadMovingKeyToKeychain(from: oldSettingsFileURL, keyStore: checkKeyStore)
+    check(
+        secondKeyMigration == .notNeeded && reloadedSettings.geminiAPIKey == "key-from-0.1" && reloadedSettings.geminiModelNames == ["gemini-flash-lite-latest"],
+        "after moving, the key loads from the keychain"
+    )
+
+    var settingsWithoutKey = reloadedSettings
+    settingsWithoutKey.geminiAPIKey = ""
+    try settingsWithoutKey.saveIncludingKey(to: oldSettingsFileURL, keyStore: checkKeyStore)
+    check(checkKeyStore.load() == nil, "removing the key deletes it from the keychain")
+} catch {
+    check(false, "keychain round trip failed: \(error.localizedDescription)")
+}
+try? checkKeyStore.delete()
 try? FileManager.default.removeItem(at: temporarySettingsFolderURL)
 check(TikoSettings.load(from: temporarySettingsFileURL) == TikoSettings(), "a missing settings file loads as empty settings")
 
@@ -471,7 +511,7 @@ if CommandLine.arguments.contains("--live") {
     print("Live Gemini")
     let apiKey = TikoSettings.load().resolvedGeminiAPIKey
     if apiKey.isEmpty {
-        print("  FAIL  no key: set GEMINI_API_KEY or save a key in Tiko's panel")
+        print("  FAIL  no key: run with GEMINI_API_KEY=your-key (Tiko's own key is in the keychain)")
         failedCheckCount += 1
     } else if let generalScreen = SyntheticScreens.systemSettings(name: "general", selectedPane: "General", paneRows: ["About", "Software Update", "Storage", "Login Items"]) {
         do {

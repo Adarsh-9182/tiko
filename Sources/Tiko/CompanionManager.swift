@@ -157,7 +157,15 @@ final class CompanionManager: ObservableObject {
     private static let voicePreviewText = "namaste! main tiko hoon, aapke cursor ke paas rehta hoon."
 
     init() {
-        let savedSettings = TikoSettings.load()
+        let (savedSettings, keyMigration) = TikoSettings.loadMovingKeyToKeychain()
+        switch keyMigration {
+        case .notNeeded:
+            break
+        case .movedToKeychain:
+            TikoLog.write("moved the gemini key from the settings file into the keychain")
+        case .failed(let message):
+            TikoLog.write("key stays in the settings file for now: \(message)")
+        }
         settings = savedSettings
         geminiKeyStatus = !savedSettings.geminiAPIKey.isEmpty && !savedSettings.geminiModelNames.isEmpty
             ? .ready(modelNames: savedSettings.geminiModelNames)
@@ -285,7 +293,7 @@ final class CompanionManager: ObservableObject {
                 if let chosenModelName = updatedSettings.chosenModelName, !choosableModelNames.contains(chosenModelName) {
                     updatedSettings.chosenModelName = nil
                 }
-                try updatedSettings.save()
+                try updatedSettings.saveIncludingKey()
                 self.applySettings(updatedSettings)
                 self.geminiKeyStatus = .ready(modelNames: preferredModelNames)
                 TikoLog.write("key saved · automatic models \(preferredModelNames.joined(separator: ", ")) · \(choosableModelNames.count) choosable")
@@ -304,7 +312,7 @@ final class CompanionManager: ObservableObject {
         updatedSettings.availableModelNames = []
         updatedSettings.chosenModelName = nil
         do {
-            try updatedSettings.save()
+            try updatedSettings.saveIncludingKey()
             applySettings(updatedSettings)
             geminiKeyStatus = .missing
             TikoLog.write("key removed")
@@ -318,7 +326,7 @@ final class CompanionManager: ObservableObject {
         var updatedSettings = settings
         updatedSettings.chosenModelName = modelName
         do {
-            try updatedSettings.save()
+            try updatedSettings.saveIncludingKey()
             applySettings(updatedSettings)
             TikoLog.write("model chosen: \(modelName ?? "automatic")")
         } catch {
@@ -336,7 +344,7 @@ final class CompanionManager: ObservableObject {
                   let self else { return }
             var updatedSettings = self.settings
             updatedSettings.availableModelNames = GeminiModelPicker.choosableModelNames(from: availableModelNames)
-            try? updatedSettings.save()
+            try? updatedSettings.saveIncludingKey()
             self.applySettings(updatedSettings)
             TikoLog.write("model list refreshed · \(updatedSettings.availableModelNames.count) choosable")
         }
